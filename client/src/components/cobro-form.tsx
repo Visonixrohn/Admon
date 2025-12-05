@@ -142,6 +142,17 @@ export default function CobroForm({ open, onOpenChange, onCreated }: Props) {
     // si no hay fecha próxima, cobrar al menos 1 mensualidad
     if (!sub.proxima_fecha_de_pago) return mensual;
 
+    // Si la próxima fecha de pago está en el futuro, no corresponde cobrar ahora
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const prox = new Date(sub.proxima_fecha_de_pago);
+      prox.setHours(0, 0, 0, 0);
+      if (prox > today) return 0;
+    } catch (err) {
+      // si hay error al parsear, seguimos con la lógica por defecto
+    }
+
     const months = computeMonthsDueCount(
       sub.proxima_fecha_de_pago,
       sub.dia_de_pago_mensual
@@ -251,10 +262,14 @@ export default function CobroForm({ open, onOpenChange, onCreated }: Props) {
       identidad: extra?.clientRtn ?? pago.cliente ?? "",
       nombre: extra?.clientNombre ?? clientName,
       producto: projectName,
-      valorPagar: formatCurrency(monto),
+      // Valor a Pagar debe ser el "mínimo" cuando se provea (ej. suscripción)
+      valorPagar: formatCurrency(Number(extra?.minimo ?? monto)),
+      // Valor pagado sigue siendo el monto efectivamente pagado
       valorPagado: formatCurrency(monto),
       proximaFecha: proximaFecha ? formatDate(proximaFecha) : "-",
     };
+
+    const receiptTitle = (extra?.tipo ?? pago.tipo) === 'contrato' ? 'Recibo de Pago de Contrato' : 'Recibo de Pago de Suscripción';
 
     return `<!doctype html>
       <html>
@@ -285,7 +300,7 @@ export default function CobroForm({ open, onOpenChange, onCreated }: Props) {
             <h1>${negocio.nombre}</h1>
             <img src="/vsr.png" alt="Logo" />
           </div>
-          <h2>Recibo de Pago de Suscripción</h2>
+          <h2>${receiptTitle}</h2>
 
           <div class="business-info">
             <p><strong>Propietario:</strong> ${negocio.propietario}</p>
@@ -318,10 +333,13 @@ export default function CobroForm({ open, onOpenChange, onCreated }: Props) {
       </html>`;
   }
 
-  async function generateAndOpenInvoice(pagoRecord: any) {
+  async function generateAndOpenInvoice(pagoRecord: any, extraInput: any = {}) {
     try {
       const config = await fetchConfigRow();
-      let extra: any = {};
+      // allow caller to provide extra data (e.g. minimo) and augment with fetched values
+      let extra: any = { ...(extraInput ?? {}) };
+      // ensure tipo is present so the invoice title can reflect the payment type
+      if (!extra.tipo && pagoRecord?.tipo) extra.tipo = pagoRecord.tipo;
       try {
         if (pagoRecord?.tipo === "suscripcion" && pagoRecord?.referencia_id) {
           const { data: sdata, error: serr } = await supabase
@@ -426,7 +444,8 @@ export default function CobroForm({ open, onOpenChange, onCreated }: Props) {
         // generar factura e imprimir
         try {
           const pagoRecord = insertedData ?? payload;
-          await generateAndOpenInvoice(pagoRecord);
+          // pasar el valor mínimo calculado para que en la impresión "Valor a Pagar" sea ese mínimo
+          await generateAndOpenInvoice(pagoRecord, { minimo: labelVal });
         } catch (err) {
           // eslint-disable-next-line no-console
           console.error("Error generando factura:", err);
@@ -486,7 +505,8 @@ export default function CobroForm({ open, onOpenChange, onCreated }: Props) {
         // generar factura e imprimir
         try {
           const pagoRecord = insertedData ?? payload;
-          await generateAndOpenInvoice(pagoRecord);
+          // pasar minimo e indicar tipo contrato para que la factura sea correcta
+          await generateAndOpenInvoice(pagoRecord, { minimo: monto, tipo: 'contrato' });
         } catch (err) {
           // eslint-disable-next-line no-console
           console.error("Error generando factura:", err);
