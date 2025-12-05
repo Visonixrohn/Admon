@@ -12,13 +12,25 @@ import Clients from "@/pages/clients";
 import Payments from "@/pages/payments";
 import Subscriptions from "@/pages/subscriptions";
 import Statistics from "@/pages/statistics";
+import Proyecto from "@/pages/proyecto";
+import ProyectoVentas from "@/pages/proyecto-ventas";
+import ClienteDetalle from "@/pages/cliente-detalle";
+import ProyectoDetalle from "@/pages/proyecto-detalle";
+import ContratosActivos from "@/pages/contratos-activos";
+import Configuracion from "@/pages/configuracion";
 import NotFound from "@/pages/not-found";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
+      <Route path="/clientes/proyecto/ventas" component={ProyectoVentas} />
+      <Route path="/clientes/proyecto/:id" component={ProyectoDetalle} />
+      <Route path="/clientes/proyecto" component={Proyecto} />
+      <Route path="/clientes/:id" component={ClienteDetalle} />
       <Route path="/clientes" component={Clients} />
+      <Route path="/contratos-activos" component={ContratosActivos} />
+      <Route path="/configuracion" component={Configuracion} />
       <Route path="/pagos" component={Payments} />
       <Route path="/suscripciones" component={Subscriptions} />
       <Route path="/estadisticas" component={Statistics} />

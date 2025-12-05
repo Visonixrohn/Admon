@@ -1,25 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Users, 
-  CreditCard, 
-  RefreshCcw, 
+import {
+  TrendingUp,
+  TrendingDown,
+  Users,
+  CreditCard,
+  RefreshCcw,
   AlertTriangle,
   ArrowUpRight,
-  Clock
+  Clock,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   LineChart,
   Line,
@@ -27,22 +27,35 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { formatCurrency, formatDate, getInitials, getPaymentTypeLabel, getDaysUntilDue } from "@/lib/utils";
-import type { DashboardStats, ClientWithPayments, Payment, MonthlyRevenue } from "@shared/schema";
+import {
+  formatCurrency,
+  formatDate,
+  getInitials,
+  getPaymentTypeLabel,
+  getDaysUntilDue,
+} from "@/lib/utils";
+import type {
+  DashboardStats,
+  ClientWithPayments,
+  Payment,
+  MonthlyRevenue,
+} from "@shared/schema";
 import { Link } from "wouter";
+import { supabase } from "@/lib/supabase";
+import { useToast } from "@/hooks/use-toast";
 
-function StatsCard({ 
-  title, 
-  value, 
-  icon: Icon, 
-  trend, 
-  trendValue, 
-  loading 
-}: { 
-  title: string; 
-  value: string; 
-  icon: React.ElementType; 
-  trend?: "up" | "down"; 
+function StatsCard({
+  title,
+  value,
+  icon: Icon,
+  trend,
+  trendValue,
+  loading,
+}: {
+  title: string;
+  value: string;
+  icon: React.ElementType;
+  trend?: "up" | "down";
   trendValue?: string;
   loading?: boolean;
 }) {
@@ -63,8 +76,15 @@ function StatsCard({
       <CardContent className="p-6">
         <div className="flex items-center justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-muted-foreground truncate">{title}</p>
-            <p className="text-2xl font-bold mt-1 truncate" data-testid={`text-stat-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+            <p className="text-sm font-medium text-muted-foreground truncate">
+              {title}
+            </p>
+            <p
+              className="text-2xl font-bold mt-1 truncate"
+              data-testid={`text-stat-${title
+                .toLowerCase()
+                .replace(/\s+/g, "-")}`}
+            >
               {value}
             </p>
             {trend && trendValue && (
@@ -74,10 +94,16 @@ function StatsCard({
                 ) : (
                   <TrendingDown className="h-3 w-3 text-red-500 flex-shrink-0" />
                 )}
-                <span className={`text-xs font-medium ${trend === "up" ? "text-green-500" : "text-red-500"}`}>
+                <span
+                  className={`text-xs font-medium ${
+                    trend === "up" ? "text-green-500" : "text-red-500"
+                  }`}
+                >
                   {trendValue}
                 </span>
-                <span className="text-xs text-muted-foreground">vs mes anterior</span>
+                <span className="text-xs text-muted-foreground">
+                  vs mes anterior
+                </span>
               </div>
             )}
           </div>
@@ -90,7 +116,13 @@ function StatsCard({
   );
 }
 
-function RecentPaymentItem({ payment, clientName }: { payment: Payment; clientName: string }) {
+function RecentPaymentItem({
+  payment,
+  clientName,
+}: {
+  payment: Payment;
+  clientName: string;
+}) {
   const statusColors = {
     pagado: "bg-green-500/10 text-green-600 dark:text-green-400",
     pendiente: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400",
@@ -106,13 +138,19 @@ function RecentPaymentItem({ payment, clientName }: { payment: Payment; clientNa
       </Avatar>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{clientName}</p>
-        <p className="text-xs text-muted-foreground truncate">{formatDate(payment.dueDate)}</p>
+        <p className="text-xs text-muted-foreground truncate">
+          {formatDate(payment.dueDate)}
+        </p>
       </div>
       <div className="text-right flex-shrink-0">
-        <p className="text-sm font-semibold">{formatCurrency(Number(payment.amount))}</p>
-        <Badge 
-          variant="secondary" 
-          className={`text-xs ${statusColors[payment.status as keyof typeof statusColors]}`}
+        <p className="text-sm font-semibold">
+          {formatCurrency(Number(payment.amount))}
+        </p>
+        <Badge
+          variant="secondary"
+          className={`text-xs ${
+            statusColors[payment.status as keyof typeof statusColors]
+          }`}
         >
           {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
         </Badge>
@@ -121,34 +159,58 @@ function RecentPaymentItem({ payment, clientName }: { payment: Payment; clientNa
   );
 }
 
-function UpcomingPaymentItem({ payment, clientName }: { payment: Payment; clientName: string }) {
-  const daysUntil = getDaysUntilDue(payment.dueDate);
-  const isOverdue = daysUntil < 0;
-  const isUrgent = daysUntil <= 3 && daysUntil >= 0;
+function UpcomingPaymentItem({
+  payment,
+  clientName,
+}: {
+  payment: Payment;
+  clientName: string;
+}) {
+  const daysUntil = payment.dueDate ? getDaysUntilDue(payment.dueDate) : NaN;
+  const isOverdue = Number.isFinite(daysUntil) ? daysUntil < 0 : false;
+  const isUrgent = Number.isFinite(daysUntil)
+    ? daysUntil <= 3 && daysUntil >= 0
+    : false;
 
   return (
     <div className="flex items-center gap-4 py-3 border-b border-border last:border-0">
-      <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-        isOverdue ? "bg-red-500/10" : isUrgent ? "bg-yellow-500/10" : "bg-muted"
-      }`}>
+      <div
+        className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+          isOverdue
+            ? "bg-red-500/10"
+            : isUrgent
+            ? "bg-yellow-500/10"
+            : "bg-muted"
+        }`}
+      >
         {isOverdue ? (
           <AlertTriangle className="h-5 w-5 text-red-500" />
         ) : (
-          <Clock className={`h-5 w-5 ${isUrgent ? "text-yellow-500" : "text-muted-foreground"}`} />
+          <Clock
+            className={`h-5 w-5 ${
+              isUrgent ? "text-yellow-500" : "text-muted-foreground"
+            }`}
+          />
         )}
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{clientName}</p>
-        <p className={`text-xs ${isOverdue ? "text-red-500 font-medium" : "text-muted-foreground"}`}>
-          {isOverdue 
-            ? `Vencido hace ${Math.abs(daysUntil)} dias` 
-            : daysUntil === 0 
-              ? "Vence hoy" 
-              : `Vence en ${daysUntil} dias`}
+        <p
+          className={`text-xs ${
+            isOverdue ? "text-red-500 font-medium" : "text-muted-foreground"
+          }`}
+        >
+          {isOverdue
+            ? `Vencido hace ${Math.abs(daysUntil)} dias`
+            : daysUntil === 0
+            ? "Vence hoy"
+            : `Vence en ${daysUntil} dias`}
         </p>
       </div>
       <div className="text-right flex-shrink-0">
-        <p className="text-sm font-semibold">{formatCurrency(Number(payment.amount))}</p>
+        <p className="text-sm font-semibold">
+          {formatCurrency(Number(payment.amount))}
+        </p>
       </div>
     </div>
   );
@@ -163,42 +225,256 @@ const CHART_COLORS = [
 ];
 
 export default function Dashboard() {
+  const { toast } = useToast();
+
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
-    queryKey: ["/api/stats"],
+    queryKey: ["dashboard", "stats"],
+    queryFn: async () => {
+      try {
+        const [rPagos, rClientes, rSubs] = await Promise.all([
+          supabase.from("pagos").select("monto"),
+          supabase.from("clientes").select("id"),
+          supabase
+            .from("suscripciones")
+            .select("id,mensualidad,is_active,proxima_fecha_de_pago"),
+        ]);
+
+        const pagosData = Array.isArray(rPagos.data) ? rPagos.data : [];
+        const clientesData = Array.isArray(rClientes.data)
+          ? rClientes.data
+          : [];
+        const subsData = Array.isArray(rSubs.data) ? rSubs.data : [];
+
+        const totalRevenue = pagosData.reduce(
+          (s: number, p: any) => s + Number(p.monto ?? 0),
+          0
+        );
+        const totalClients = clientesData.length;
+        const activeSubscriptions = subsData.filter((s: any) =>
+          s.is_active === undefined ? true : s.is_active
+        ).length;
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const pendingPayments = subsData.filter((s: any) => {
+          if (!s.proxima_fecha_de_pago) return false;
+          const d = new Date(s.proxima_fecha_de_pago);
+          d.setHours(0, 0, 0, 0);
+          return d <= today;
+        }).length;
+
+        const overduePayments = pendingPayments;
+
+        const monthlyRecurringRevenue = subsData.reduce(
+          (sum: number, s: any) => sum + Number(s.mensualidad ?? 0),
+          0
+        );
+
+        return {
+          totalRevenue,
+          totalClients,
+          pendingPayments,
+          activeSubscriptions,
+          monthlyRecurringRevenue,
+          overduePayments,
+        } as DashboardStats;
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("Error loading dashboard stats:", err);
+        toast({ title: "Error cargando estadísticas", variant: "destructive" });
+        return {
+          totalRevenue: 0,
+          totalClients: 0,
+          pendingPayments: 0,
+          activeSubscriptions: 0,
+          monthlyRecurringRevenue: 0,
+          overduePayments: 0,
+        } as DashboardStats;
+      }
+    },
   });
 
-  const { data: clients, isLoading: clientsLoading } = useQuery<ClientWithPayments[]>({
-    queryKey: ["/api/clients"],
+  const { data: clients, isLoading: clientsLoading } = useQuery<
+    Array<{
+      id: any;
+      nombre: any;
+      telefono: any;
+      rtn: any;
+      oficio: any;
+      created_at: any;
+    }>
+  >({
+    queryKey: ["dashboard", "clients"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("clientes")
+        .select("id,nombre,telefono,rtn,oficio,created_at");
+      if (error) throw error;
+      return Array.isArray(data) ? data : [];
+    },
   });
 
-  const { data: recentPayments, isLoading: paymentsLoading } = useQuery<{ payment: Payment; clientName: string }[]>({
-    queryKey: ["/api/payments/recent"],
+  const { data: recentPayments, isLoading: paymentsLoading } = useQuery<any[]>({
+    queryKey: ["dashboard", "payments", "recent"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pagos")
+        .select(
+          "id,fecha_de_creacion,tipo,referencia_id,cliente,proyecto,monto,notas"
+        )
+        .order("fecha_de_creacion", { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      const pagos = Array.isArray(data) ? data : [];
+      // fetch clients map
+      const clientIds = Array.from(
+        new Set(pagos.map((p: any) => p.cliente).filter(Boolean))
+      );
+      const { data: clientsRes } = await supabase
+        .from("clientes")
+        .select("id,nombre")
+        .in("id", clientIds);
+      const cMap: Record<string, string> = {};
+      (Array.isArray(clientsRes) ? clientsRes : []).forEach((c: any) => {
+        if (c?.id) cMap[c.id] = c.nombre;
+      });
+      return pagos.map((p: any) => ({
+        payment: {
+          id: p.id,
+          amount: p.monto,
+          dueDate: p.fecha_de_creacion,
+          status: "pagado",
+        },
+        clientName: cMap[p.cliente] ?? p.cliente ?? "Cliente",
+        raw: p,
+      }));
+    },
   });
 
-  const { data: upcomingPayments } = useQuery<{ payment: Payment; clientName: string }[]>({
-    queryKey: ["/api/payments/upcoming"],
+  const { data: upcomingPayments } = useQuery<any[]>({
+    queryKey: ["dashboard", "payments", "upcoming"],
+    queryFn: async () => {
+      // upcoming: suscripciones with next payment in next 30 days or overdue
+      const now = new Date();
+      const soon = new Date();
+      soon.setDate(now.getDate() + 30);
+      const { data, error } = await supabase
+        .from("suscripciones")
+        .select("id,cliente,proyecto,proxima_fecha_de_pago,mensualidad")
+        .order("proxima_fecha_de_pago", { ascending: true })
+        .limit(10);
+      if (error) throw error;
+      const subs = Array.isArray(data) ? data : [];
+      const clientIds = Array.from(
+        new Set(subs.map((s: any) => s.cliente).filter(Boolean))
+      );
+      const { data: clientsRes } = await supabase
+        .from("clientes")
+        .select("id,nombre")
+        .in("id", clientIds);
+      const cMap: Record<string, string> = {};
+      (Array.isArray(clientsRes) ? clientsRes : []).forEach((c: any) => {
+        if (c?.id) cMap[c.id] = c.nombre;
+      });
+      return subs.map((s: any) => ({
+        payment: {
+          id: s.id,
+          amount: s.mensualidad,
+          dueDate: s.proxima_fecha_de_pago,
+          status: "pendiente",
+        },
+        clientName: cMap[s.cliente] ?? s.cliente ?? "Cliente",
+      }));
+    },
   });
 
-  const { data: monthlyRevenue } = useQuery<MonthlyRevenue[]>({
-    queryKey: ["/api/stats/revenue"],
+  const { data: monthlyRevenue } = useQuery<any[]>({
+    queryKey: ["dashboard", "revenue"],
+    queryFn: async () => {
+      // fetch pagos for last 6 months
+      const now = new Date();
+      const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+      const { data, error } = await supabase
+        .from("pagos")
+        .select("id,fecha_de_creacion,monto,tipo")
+        .gte("fecha_de_creacion", sixMonthsAgo.toISOString())
+        .order("fecha_de_creacion", { ascending: true });
+      if (error) throw error;
+      const rows = Array.isArray(data) ? data : [];
+      // build months array
+      const months: Record<
+        string,
+        {
+          month: string;
+          oneTime: number;
+          subscriptions: number;
+          revenue: number;
+        }
+      > = {};
+      for (let i = 0; i < 6; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+        const key = `${d.getFullYear()}-${(d.getMonth() + 1)
+          .toString()
+          .padStart(2, "0")}`;
+        months[key] = {
+          month: d.toLocaleString(undefined, { month: "short" }),
+          oneTime: 0,
+          subscriptions: 0,
+          revenue: 0,
+        };
+      }
+      rows.forEach((r: any) => {
+        const d = new Date(r.fecha_de_creacion);
+        const key = `${d.getFullYear()}-${(d.getMonth() + 1)
+          .toString()
+          .padStart(2, "0")}`;
+        if (!months[key]) return;
+        const monto = Number(r.monto ?? 0);
+        months[key].revenue += monto;
+        if (String(r.tipo) === "suscripcion")
+          months[key].subscriptions += monto;
+        else months[key].oneTime += monto;
+      });
+      return Object.values(months);
+    },
   });
 
-  const paymentTypeDistribution = clients?.reduce((acc, client) => {
-    const type = client.paymentType;
+  const { data: pagosAll } = useQuery<any[]>({
+    queryKey: ["dashboard", "pagos", "all"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("pagos").select("tipo,monto");
+      if (error) throw error;
+      return Array.isArray(data) ? data : [];
+    },
+  });
+
+  const paymentTypeDistribution = (
+    Array.isArray(pagosAll) ? pagosAll : []
+  ).reduce((acc: Record<string, number>, p: any) => {
+    const type = p?.tipo ?? "unico";
     acc[type] = (acc[type] || 0) + 1;
     return acc;
-  }, {} as Record<string, number>) || {};
+  }, {} as Record<string, number>);
 
-  const pieData = Object.entries(paymentTypeDistribution).map(([name, value]) => ({
-    name: getPaymentTypeLabel(name),
-    value,
-  }));
+  const pieData = Object.entries(paymentTypeDistribution).map(
+    ([name, value]) => ({
+      name: getPaymentTypeLabel(name),
+      value,
+    })
+  );
 
   return (
     <div className="p-6 lg:p-8 space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-page-title">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Resumen general de tu negocio</p>
+        <h1
+          className="text-2xl font-semibold tracking-tight"
+          data-testid="text-page-title"
+        >
+          Dashboard
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          Resumen general de tu negocio
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -237,42 +513,49 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between gap-4">
-            <CardTitle className="text-lg font-semibold">Ingresos Mensuales</CardTitle>
-            <Badge variant="secondary" className="text-xs">Ultimos 6 meses</Badge>
+            <CardTitle className="text-lg font-semibold">
+              Ingresos Mensuales
+            </CardTitle>
+            <Badge variant="secondary" className="text-xs">
+              Ultimos 6 meses
+            </Badge>
           </CardHeader>
           <CardContent>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={monthlyRevenue || []}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis 
-                    dataKey="month" 
-                    className="text-xs" 
-                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    className="stroke-muted"
                   />
-                  <YAxis 
-                    className="text-xs" 
-                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                  <XAxis
+                    dataKey="month"
+                    className="text-xs"
+                    tick={{ fill: "hsl(var(--muted-foreground))" }}
+                  />
+                  <YAxis
+                    className="text-xs"
+                    tick={{ fill: "hsl(var(--muted-foreground))" }}
                     tickFormatter={(value) => `L ${value / 1000}k`}
                   />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
                     }}
-                    labelStyle={{ color: 'hsl(var(--foreground))' }}
-                    formatter={(value: number) => [formatCurrency(value), '']}
+                    labelStyle={{ color: "hsl(var(--foreground))" }}
+                    formatter={(value: number) => [formatCurrency(value), ""]}
                   />
-                  <Bar 
-                    dataKey="oneTime" 
-                    fill="hsl(var(--chart-1))" 
+                  <Bar
+                    dataKey="oneTime"
+                    fill="hsl(var(--chart-1))"
                     radius={[4, 4, 0, 0]}
                     name="Pagos Unicos"
                   />
-                  <Bar 
-                    dataKey="subscriptions" 
-                    fill="hsl(var(--chart-2))" 
+                  <Bar
+                    dataKey="subscriptions"
+                    fill="hsl(var(--chart-2))"
                     radius={[4, 4, 0, 0]}
                     name="Suscripciones"
                   />
@@ -284,7 +567,9 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg font-semibold">Tipo de Pagos</CardTitle>
+            <CardTitle className="text-lg font-semibold">
+              Tipo de Pagos
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-[200px]">
@@ -300,14 +585,17 @@ export default function Dashboard() {
                     dataKey="value"
                   >
                     {pieData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={CHART_COLORS[index % CHART_COLORS.length]}
+                      />
                     ))}
                   </Pie>
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
                     }}
                   />
                 </PieChart>
@@ -316,11 +604,16 @@ export default function Dashboard() {
             <div className="flex flex-wrap justify-center gap-4 mt-4">
               {pieData.map((entry, index) => (
                 <div key={entry.name} className="flex items-center gap-2">
-                  <div 
-                    className="h-3 w-3 rounded-full" 
-                    style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
+                  <div
+                    className="h-3 w-3 rounded-full"
+                    style={{
+                      backgroundColor:
+                        CHART_COLORS[index % CHART_COLORS.length],
+                    }}
                   />
-                  <span className="text-xs text-muted-foreground">{entry.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {entry.name}
+                  </span>
                 </div>
               ))}
             </div>
@@ -331,9 +624,11 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-4">
-            <CardTitle className="text-lg font-semibold">Transacciones Recientes</CardTitle>
-            <Link 
-              href="/pagos" 
+            <CardTitle className="text-lg font-semibold">
+              Transacciones Recientes
+            </CardTitle>
+            <Link
+              href="/pagos"
               className="text-sm text-primary hover:underline flex items-center gap-1"
               data-testid="link-view-all-payments"
             >
@@ -358,10 +653,10 @@ export default function Dashboard() {
             ) : recentPayments && recentPayments.length > 0 ? (
               <div>
                 {recentPayments.slice(0, 5).map(({ payment, clientName }) => (
-                  <RecentPaymentItem 
-                    key={payment.id} 
-                    payment={payment} 
-                    clientName={clientName} 
+                  <RecentPaymentItem
+                    key={payment.id}
+                    payment={payment}
+                    clientName={clientName}
                   />
                 ))}
               </div>
@@ -376,7 +671,9 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-4">
-            <CardTitle className="text-lg font-semibold">Proximos Vencimientos</CardTitle>
+            <CardTitle className="text-lg font-semibold">
+              Proximos Vencimientos
+            </CardTitle>
             <Badge variant="secondary" className="text-xs">
               {upcomingPayments?.length || 0} pendientes
             </Badge>
@@ -385,10 +682,10 @@ export default function Dashboard() {
             {upcomingPayments && upcomingPayments.length > 0 ? (
               <div>
                 {upcomingPayments.slice(0, 5).map(({ payment, clientName }) => (
-                  <UpcomingPaymentItem 
-                    key={payment.id} 
-                    payment={payment} 
-                    clientName={clientName} 
+                  <UpcomingPaymentItem
+                    key={payment.id}
+                    payment={payment}
+                    clientName={clientName}
                   />
                 ))}
               </div>
@@ -404,7 +701,9 @@ export default function Dashboard() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">Ingresos Recurrentes (MRR)</CardTitle>
+          <CardTitle className="text-lg font-semibold">
+            Ingresos Recurrentes (MRR)
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -418,43 +717,50 @@ export default function Dashboard() {
               <p className="text-3xl font-bold">
                 {stats?.activeSubscriptions || 0}
               </p>
-              <p className="text-sm text-muted-foreground mt-1">Suscripciones Activas</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Suscripciones Activas
+              </p>
             </div>
             <div className="text-center p-4 rounded-lg bg-muted/50">
               <p className="text-3xl font-bold">
                 {formatCurrency((stats?.monthlyRecurringRevenue || 0) * 12)}
               </p>
-              <p className="text-sm text-muted-foreground mt-1">ARR Proyectado</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                ARR Proyectado
+              </p>
             </div>
           </div>
           <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={monthlyRevenue || []}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis 
-                  dataKey="month" 
-                  className="text-xs" 
-                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                <XAxis
+                  dataKey="month"
+                  className="text-xs"
+                  tick={{ fill: "hsl(var(--muted-foreground))" }}
                 />
-                <YAxis 
-                  className="text-xs" 
-                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                <YAxis
+                  className="text-xs"
+                  tick={{ fill: "hsl(var(--muted-foreground))" }}
                   tickFormatter={(value) => `L ${value / 1000}k`}
                 />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
                   }}
-                  formatter={(value: number) => [formatCurrency(value), 'Suscripciones']}
+                  formatter={(value: number) => [
+                    formatCurrency(value),
+                    "Suscripciones",
+                  ]}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="subscriptions" 
-                  stroke="hsl(var(--chart-2))" 
+                <Line
+                  type="monotone"
+                  dataKey="subscriptions"
+                  stroke="hsl(var(--chart-2))"
                   strokeWidth={2}
-                  dot={{ fill: 'hsl(var(--chart-2))', r: 4 }}
+                  dot={{ fill: "hsl(var(--chart-2))", r: 4 }}
                 />
               </LineChart>
             </ResponsiveContainer>

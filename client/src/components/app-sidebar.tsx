@@ -7,6 +7,8 @@ import {
   BarChart3,
   Settings,
   Code2,
+  ShoppingCart,
+  FileText,
 } from "lucide-react";
 import {
   Sidebar,
@@ -33,6 +35,16 @@ const navigationItems = [
     icon: Users,
   },
   {
+    title: "Proyecto",
+    url: "/clientes/proyecto",
+    icon: Code2,
+  },
+  {
+    title: "Venta",
+    url: "/clientes/proyecto/ventas",
+    icon: ShoppingCart,
+  },
+  {
     title: "Pagos",
     url: "/pagos",
     icon: CreditCard,
@@ -41,6 +53,11 @@ const navigationItems = [
     title: "Suscripciones",
     url: "/suscripciones",
     icon: RefreshCcw,
+  },
+  {
+    title: "Contratos Activos",
+    url: "/contratos-activos",
+    icon: FileText,
   },
   {
     title: "Estadisticas",
@@ -55,13 +72,20 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border p-4">
-        <Link href="/" className="flex items-center gap-3" data-testid="link-logo">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Code2 className="h-6 w-6" />
+        <Link
+          href="/"
+          className="flex items-center gap-3"
+          data-testid="link-logo"
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-transparent">
+            <img
+              src="/vsr.png"
+              alt="Visonixro"
+              className="h-10 w-10 object-contain"
+            />
           </div>
           <div className="flex flex-col">
             <span className="text-lg font-bold tracking-tight">Visonixro</span>
-            <span className="text-xs text-muted-foreground">Panel Admin</span>
           </div>
         </Link>
       </SidebarHeader>
@@ -73,16 +97,17 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {navigationItems.map((item) => {
-                const isActive = location === item.url || 
+                const isActive =
+                  location === item.url ||
                   (item.url !== "/" && location.startsWith(item.url));
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton 
-                      asChild 
+                    <SidebarMenuButton
+                      asChild
                       isActive={isActive}
                       className="transition-colors"
                     >
-                      <Link 
+                      <Link
                         href={item.url}
                         data-testid={`link-nav-${item.title.toLowerCase()}`}
                       >
@@ -108,10 +133,6 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
-        <div className="mt-4 rounded-lg bg-sidebar-accent p-3">
-          <p className="text-xs text-muted-foreground">Version 1.0.0</p>
-          <p className="text-xs text-muted-foreground">Desarrollo Web Pro</p>
-        </div>
       </SidebarFooter>
     </Sidebar>
   );

@@ -1,10 +1,10 @@
-import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { 
-  RefreshCcw, 
-  Search, 
-  CheckCircle2, 
-  XCircle, 
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  RefreshCcw,
+  Search,
+  CheckCircle2,
+  XCircle,
   Calendar,
   TrendingUp,
   DollarSign,
@@ -14,6 +14,21 @@ import {
   Play,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -27,31 +42,38 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
-import { formatCurrency, formatDate, getInitials, getDaysUntilDue } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
+import { queryClient } from "@/lib/queryClient";
+import {
+  formatCurrency,
+  formatDate,
+  getInitials,
+  getDaysUntilDue,
+} from "@/lib/utils";
 import type { Subscription, DashboardStats } from "@shared/schema";
 
 interface SubscriptionWithClient extends Subscription {
   clientName: string;
-  clientEmail: string;
+  clientEmail?: string | null;
   projectName: string;
 }
 
-function SubscriptionCard({ 
-  subscription, 
-  onToggleStatus 
-}: { 
+function SubscriptionCard({
+  subscription,
+  onToggleStatus,
+}: {
   subscription: SubscriptionWithClient;
-  onToggleStatus: (id: string, active: boolean) => void;
+  onToggleStatus?: (id: string, active: boolean) => void;
 }) {
-  const daysUntilPayment = subscription.nextPaymentDate 
-    ? getDaysUntilDue(subscription.nextPaymentDate) 
+  const daysUntilPayment = subscription.nextPaymentDate
+    ? getDaysUntilDue(subscription.nextPaymentDate)
     : 0;
   const isPaymentDue = daysUntilPayment <= 0 && subscription.isActive;
-  const isPaymentSoon = daysUntilPayment <= 5 && daysUntilPayment > 0 && subscription.isActive;
+  const isPaymentSoon =
+    daysUntilPayment <= 5 && daysUntilPayment > 0 && subscription.isActive;
 
   return (
-    <Card 
+    <Card
       className={`hover-elevate transition-all ${
         !subscription.isActive ? "opacity-60" : ""
       }`}
@@ -66,40 +88,50 @@ function SubscriptionCard({
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <p className="font-semibold truncate">{subscription.clientName}</p>
-              <p className="text-sm text-muted-foreground truncate">{subscription.projectName}</p>
+              <p className="font-semibold truncate">
+                {subscription.clientName}
+              </p>
+              <p className="text-sm text-muted-foreground truncate">
+                {subscription.projectName}
+              </p>
             </div>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem 
-                onClick={() => onToggleStatus(subscription.id, !subscription.isActive)}
-                data-testid="menu-toggle-status"
-              >
-                {subscription.isActive ? (
-                  <>
-                    <Pause className="h-4 w-4 mr-2" />
-                    Pausar suscripcion
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-4 w-4 mr-2" />
-                    Reactivar suscripcion
-                  </>
-                )}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {onToggleStatus ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() =>
+                    onToggleStatus(subscription.id, !subscription.isActive)
+                  }
+                  data-testid="menu-toggle-status"
+                >
+                  {subscription.isActive ? (
+                    <>
+                      <Pause className="h-4 w-4 mr-2" />
+                      Pausar suscripcion
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4 mr-2" />
+                      Reactivar suscripcion
+                    </>
+                  )}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
         </div>
 
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-4">
-            <span className="text-sm text-muted-foreground">Monto mensual:</span>
+            <span className="text-sm text-muted-foreground">
+              Monto mensual:
+            </span>
             <span className="text-xl font-bold text-primary">
               {formatCurrency(Number(subscription.monthlyAmount))}
             </span>
@@ -112,23 +144,38 @@ function SubscriptionCard({
             </div>
             <div className="flex items-center justify-between gap-4 text-sm">
               <span className="text-muted-foreground">Ultimo pago:</span>
-              <span>{subscription.lastPaymentDate ? formatDate(subscription.lastPaymentDate) : "Pendiente"}</span>
+              <span>
+                {subscription.lastPaymentDate
+                  ? formatDate(subscription.lastPaymentDate)
+                  : "Pendiente"}
+              </span>
             </div>
             <div className="flex items-center justify-between gap-4 text-sm">
               <span className="text-muted-foreground">Proximo pago:</span>
-              <span className={`font-medium ${isPaymentDue ? "text-red-500" : isPaymentSoon ? "text-yellow-500" : ""}`}>
-                {subscription.nextPaymentDate ? formatDate(subscription.nextPaymentDate) : "-"}
+              <span
+                className={`font-medium ${
+                  isPaymentDue
+                    ? "text-red-500"
+                    : isPaymentSoon
+                    ? "text-yellow-500"
+                    : ""
+                }`}
+              >
+                {subscription.nextPaymentDate
+                  ? formatDate(subscription.nextPaymentDate)
+                  : "-"}
               </span>
             </div>
           </div>
         </div>
 
         <div className="mt-4 pt-4 border-t border-border flex items-center justify-between gap-4">
-          <Badge 
-            variant="secondary" 
-            className={subscription.isActive 
-              ? "bg-green-500/10 text-green-600 dark:text-green-400" 
-              : "bg-muted text-muted-foreground"
+          <Badge
+            variant="secondary"
+            className={
+              subscription.isActive
+                ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                : "bg-muted text-muted-foreground"
             }
           >
             {subscription.isActive ? (
@@ -144,10 +191,14 @@ function SubscriptionCard({
             )}
           </Badge>
           {isPaymentDue && subscription.isActive && (
-            <span className="text-xs text-red-500 font-medium">Pago vencido</span>
+            <span className="text-xs text-red-500 font-medium">
+              Pago vencido
+            </span>
           )}
           {isPaymentSoon && (
-            <span className="text-xs text-yellow-500">Vence en {daysUntilPayment} dias</span>
+            <span className="text-xs text-yellow-500">
+              Vence en {daysUntilPayment} dias
+            </span>
           )}
         </div>
       </CardContent>
@@ -157,55 +208,207 @@ function SubscriptionCard({
 
 export default function Subscriptions() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterActive, setFilterActive] = useState<"all" | "active" | "paused">("all");
+  const [filterActive, setFilterActive] = useState<"all" | "active" | "paused">(
+    "all"
+  );
+  const [filterStatus, setFilterStatus] = useState<"all" | "aldia" | "atraso">(
+    "all"
+  );
   const { toast } = useToast();
+  const [projectsMap, setProjectsMap] = useState<Record<string, string>>({});
+  const [clientsMap, setClientsMap] = useState<Record<string, string>>({});
 
-  const { data: subscriptions, isLoading } = useQuery<SubscriptionWithClient[]>({
-    queryKey: ["/api/subscriptions"],
+  async function loadMeta() {
+    try {
+      const [pRes, cRes] = await Promise.all([
+        supabase.from("proyectos").select("id,nombre"),
+        supabase.from("clientes").select("id,nombre"),
+      ]);
+      const pData = Array.isArray(pRes.data) ? pRes.data : [];
+      const cData = Array.isArray(cRes.data) ? cRes.data : [];
+      const pMap: Record<string, string> = {};
+      const cMap: Record<string, string> = {};
+      pData.forEach((p: any) => {
+        if (p?.id) pMap[p.id] = p.nombre ?? p.id;
+      });
+      cData.forEach((c: any) => {
+        if (c?.id) cMap[c.id] = c.nombre ?? c.id;
+      });
+      setProjectsMap(pMap);
+      setClientsMap(cMap);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("Error cargando meta:", err);
+    }
+  }
+
+  // Query suscripciones from Supabase and map to SubscriptionWithClient
+  const { data: rawSubs, isLoading } = useQuery({
+    queryKey: ["suscripciones"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("suscripciones")
+        .select("*")
+        .order("fecha_de_creacion", { ascending: false });
+      if (error) throw error;
+      return Array.isArray(data) ? data : [];
+    },
   });
 
-  const { data: stats } = useQuery<DashboardStats>({
-    queryKey: ["/api/stats"],
-  });
+  useEffect(() => {
+    loadMeta();
+  }, []);
 
-  const toggleMutation = useMutation({
-    mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
-      return apiRequest("PATCH", `/api/subscriptions/${id}/toggle`, { isActive: active });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/subscriptions"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
-      toast({ title: "Suscripcion actualizada" });
-    },
-    onError: () => {
-      toast({ title: "Error al actualizar suscripcion", variant: "destructive" });
-    },
-  });
+  const subscriptionsList: SubscriptionWithClient[] = (
+    Array.isArray(rawSubs) ? rawSubs : []
+  ).map((r: any) => ({
+    id: r.id,
+    clientName: clientsMap[r.cliente] ?? r.cliente ?? "Cliente",
+    projectName: projectsMap[r.proyecto] ?? r.proyecto ?? "Proyecto",
+    monthlyAmount: Number(r.mensualidad ?? 0),
+    startDate: r.fecha_de_creacion ?? r.created_at ?? null,
+    lastPaymentDate: r.ultimo_pago ?? null,
+    nextPaymentDate: r.proxima_fecha_de_pago ?? null,
+    isActive: r.is_active === undefined ? true : Boolean(r.is_active),
+  }));
 
-  const filteredSubscriptions = subscriptions?.filter((sub) => {
-    const matchesSearch = 
-      sub.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sub.projectName.toLowerCase().includes(searchQuery.toLowerCase());
-    
+  const filteredSubscriptions = subscriptionsList.filter((sub) => {
+    const matchesSearch =
+      (sub.clientName ?? "")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      (sub.projectName ?? "").toLowerCase().includes(searchQuery.toLowerCase());
+
     let matchesFilter = true;
     if (filterActive === "active") {
       matchesFilter = sub.isActive === true;
     } else if (filterActive === "paused") {
       matchesFilter = sub.isActive === false;
     }
-    
-    return matchesSearch && matchesFilter;
+
+    // filtro por estado de pago: 'aldia' | 'atraso'
+    let matchesStatus = true;
+    if (filterStatus !== "all") {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const next = sub.nextPaymentDate
+        ? new Date(sub.nextPaymentDate as string)
+        : null;
+      if (!next) {
+        matchesStatus = filterStatus === "all";
+      } else {
+        next.setHours(0, 0, 0, 0);
+        if (today > next) matchesStatus = filterStatus === "atraso";
+        else matchesStatus = filterStatus === "aldia";
+      }
+    }
+
+    return matchesSearch && matchesFilter && matchesStatus;
   });
 
-  const activeSubscriptions = subscriptions?.filter(s => s.isActive) || [];
-  const mrr = activeSubscriptions.reduce((sum, s) => sum + Number(s.monthlyAmount), 0);
+  const activeSubscriptions = subscriptionsList.filter((s) => s.isActive) || [];
+  const mrr = activeSubscriptions.reduce(
+    (sum, s) => sum + Number(s.monthlyAmount ?? 0),
+    0
+  );
   const arr = mrr * 12;
+
+  const [selected, setSelected] = useState<SubscriptionWithClient | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [mensualidadEdit, setMensualidadEdit] = useState<string>("");
+  const [proximaEdit, setProximaEdit] = useState<string>("");
+
+  const openDetail = (s: SubscriptionWithClient) => {
+    setSelected(s);
+    // inicializar valores de edición
+    setMensualidadEdit(String(s.monthlyAmount ?? ""));
+    setProximaEdit(
+      s.nextPaymentDate
+        ? new Date(s.nextPaymentDate).toISOString().slice(0, 10)
+        : ""
+    );
+    setEditMode(false);
+    setDetailOpen(true);
+  };
+
+  const closeDetail = () => {
+    setDetailOpen(false);
+    setSelected(null);
+  };
+
+  const toggleSubscription = async () => {
+    if (!selected) return;
+    try {
+      const newState = !selected.isActive;
+      const { error } = await supabase
+        .from("suscripciones")
+        .update({ is_active: newState })
+        .eq("id", selected.id);
+      if (error) throw error;
+      // actualizar UI local y refetch
+      setSelected({ ...selected, isActive: newState });
+      queryClient.invalidateQueries({ queryKey: ["suscripciones"] });
+      toast({
+        title: newState ? "Suscripción reactivada" : "Suscripción pausada",
+      });
+    } catch (err: any) {
+      // eslint-disable-next-line no-console
+      console.error("Error actualizando suscripción:", err);
+      toast({
+        title: "Error al actualizar suscripción",
+        description: err?.message ?? String(err),
+      });
+    }
+  };
+
+  const saveEdits = async () => {
+    if (!selected) return;
+    try {
+      const mensual = mensualidadEdit ? Number(mensualidadEdit) : 0;
+      const proxIso = proximaEdit
+        ? new Date(proximaEdit + "T00:00:00").toISOString()
+        : null;
+      const updates: any = { mensualidad: mensual };
+      if (proxIso) updates.proxima_fecha_de_pago = proxIso;
+
+      const { error } = await supabase
+        .from("suscripciones")
+        .update(updates)
+        .eq("id", selected.id);
+      if (error) throw error;
+      // refrescar
+      queryClient.invalidateQueries({ queryKey: ["suscripciones"] });
+      // actualizar seleccionado localmente
+      setSelected({
+        ...selected,
+        monthlyAmount: mensual,
+        nextPaymentDate: proxIso,
+      });
+      toast({ title: "Suscripción actualizada" });
+      setEditMode(false);
+    } catch (err: any) {
+      // eslint-disable-next-line no-console
+      console.error("Error guardando cambios:", err);
+      toast({
+        title: "Error al guardar cambios",
+        description: err?.message ?? String(err),
+      });
+    }
+  };
 
   return (
     <div className="p-6 lg:p-8 space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-page-title">Suscripciones</h1>
-        <p className="text-muted-foreground mt-1">Gestiona tus ingresos recurrentes</p>
+        <h1
+          className="text-2xl font-semibold tracking-tight"
+          data-testid="text-page-title"
+        >
+          Suscripciones
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          Gestiona tus ingresos recurrentes
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -216,14 +419,18 @@ export default function Subscriptions() {
                 <TrendingUp className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Ingreso Mensual Recurrente (MRR)</p>
+                <p className="text-sm text-muted-foreground">
+                  Ingreso Mensual Recurrente (MRR)
+                </p>
                 <p className="text-3xl font-bold">{formatCurrency(mrr)}</p>
               </div>
             </div>
             <div className="flex items-center gap-6 text-sm">
               <div>
                 <span className="text-muted-foreground">ARR proyectado:</span>
-                <span className="font-semibold ml-2">{formatCurrency(arr)}</span>
+                <span className="font-semibold ml-2">
+                  {formatCurrency(arr)}
+                </span>
               </div>
             </div>
           </CardContent>
@@ -236,7 +443,9 @@ export default function Subscriptions() {
             </div>
             <div>
               <p className="text-3xl font-bold">{activeSubscriptions.length}</p>
-              <p className="text-sm text-muted-foreground">Suscripciones activas</p>
+              <p className="text-sm text-muted-foreground">
+                Suscripciones activas
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -248,12 +457,13 @@ export default function Subscriptions() {
             </div>
             <div>
               <p className="text-3xl font-bold">
-                {activeSubscriptions.length > 0 
+                {activeSubscriptions.length > 0
                   ? formatCurrency(mrr / activeSubscriptions.length)
-                  : formatCurrency(0)
-                }
+                  : formatCurrency(0)}
               </p>
-              <p className="text-sm text-muted-foreground">Promedio por cliente</p>
+              <p className="text-sm text-muted-foreground">
+                Promedio por cliente
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -292,6 +502,29 @@ export default function Subscriptions() {
           >
             Pausadas
           </Button>
+          <div className="ml-2 flex items-center gap-2">
+            <Button
+              variant={filterStatus === "all" ? "secondary" : "ghost"}
+              onClick={() => setFilterStatus("all")}
+              data-testid="filter-status-all"
+            >
+              Estado: Todas
+            </Button>
+            <Button
+              variant={filterStatus === "aldia" ? "secondary" : "ghost"}
+              onClick={() => setFilterStatus("aldia")}
+              data-testid="filter-status-aldia"
+            >
+              Al Día
+            </Button>
+            <Button
+              variant={filterStatus === "atraso" ? "secondary" : "ghost"}
+              onClick={() => setFilterStatus("atraso")}
+              data-testid="filter-status-atraso"
+            >
+              Atraso
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -317,23 +550,197 @@ export default function Subscriptions() {
           ))}
         </div>
       ) : filteredSubscriptions && filteredSubscriptions.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredSubscriptions.map((subscription) => (
-            <SubscriptionCard 
-              key={subscription.id} 
-              subscription={subscription}
-              onToggleStatus={(id, active) => toggleMutation.mutate({ id, active })}
-            />
-          ))}
-        </div>
+        <>
+          <div className="mt-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Proyecto</TableHead>
+                  <TableHead>Mensualidad</TableHead>
+                  <TableHead>Inicio</TableHead>
+                  <TableHead>Próximo pago</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Activo</TableHead>
+                  <TableHead>Acción</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredSubscriptions.map((s) => (
+                  <TableRow
+                    key={s.id}
+                    onClick={() => openDetail(s)}
+                    className="cursor-pointer"
+                    role="button"
+                  >
+                    <TableCell className="truncate max-w-xs">
+                      {s.clientName}
+                    </TableCell>
+                    <TableCell className="truncate max-w-xs">
+                      {s.projectName}
+                    </TableCell>
+                    <TableCell>
+                      {formatCurrency(Number(s.monthlyAmount ?? 0))}
+                    </TableCell>
+                    <TableCell>
+                      {s.startDate ? formatDate(s.startDate) : "-"}
+                    </TableCell>
+                    <TableCell>
+                      {s.nextPaymentDate ? formatDate(s.nextPaymentDate) : "-"}
+                    </TableCell>
+                    <TableCell>
+                      {s.nextPaymentDate ? (
+                        (() => {
+                          const today = new Date();
+                          const next = new Date(s.nextPaymentDate as string);
+                          today.setHours(0, 0, 0, 0);
+                          next.setHours(0, 0, 0, 0);
+                          if (today > next) {
+                            return (
+                              <span className="text-red-600 font-semibold">
+                                ATRASO
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className="text-green-600 font-semibold">
+                              AL DÍA
+                            </span>
+                          );
+                        })()
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="secondary"
+                        className={
+                          s.isActive
+                            ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                            : "bg-muted text-muted-foreground"
+                        }
+                      >
+                        {s.isActive ? "Activa" : "Pausada"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {/* Mostrar botón Cobrar sólo si está en atraso */}
+                      {s.nextPaymentDate
+                        ? (() => {
+                            const today = new Date();
+                            const next = new Date(s.nextPaymentDate as string);
+                            today.setHours(0, 0, 0, 0);
+                            next.setHours(0, 0, 0, 0);
+                            const isAtraso = today > next;
+                            return isAtraso ? (
+                              <Button size="sm" variant="destructive">
+                                Cobrar
+                              </Button>
+                            ) : null;
+                          })()
+                        : null}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <Dialog
+            open={detailOpen}
+            onOpenChange={(v) => {
+              if (!v) closeDetail();
+              else setDetailOpen(v);
+            }}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Detalle de Suscripción</DialogTitle>
+              </DialogHeader>
+
+              <div className="mt-2">
+                {selected ? (
+                  !editMode ? (
+                    <SubscriptionCard subscription={selected} />
+                  ) : (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          Mensualidad
+                        </label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={mensualidadEdit}
+                          onChange={(e) => setMensualidadEdit(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          Próxima fecha de pago
+                        </label>
+                        <Input
+                          type="date"
+                          value={proximaEdit}
+                          onChange={(e) => setProximaEdit(e.target.value)}
+                        />
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          variant="outline"
+                          onClick={() => setEditMode(false)}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button onClick={saveEdits}>Guardar</Button>
+                      </div>
+                    </div>
+                  )
+                ) : (
+                  <p>No hay detalle seleccionado</p>
+                )}
+              </div>
+
+              <DialogFooter>
+                <div className="w-full flex justify-end gap-2">
+                  <Button
+                    variant={
+                      selected && selected.isActive
+                        ? "destructive"
+                        : "secondary"
+                    }
+                    onClick={toggleSubscription}
+                    disabled={!selected}
+                  >
+                    {selected && selected.isActive
+                      ? "Pausar suscripción"
+                      : "Reactivar suscripción"}
+                  </Button>
+                  {!editMode && (
+                    <Button
+                      variant="ghost"
+                      onClick={() => setEditMode(true)}
+                      disabled={!selected}
+                    >
+                      Editar
+                    </Button>
+                  )}
+                  <Button variant="ghost" onClick={closeDetail}>
+                    Cerrar
+                  </Button>
+                </div>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
       ) : (
         <Card>
           <CardContent className="p-12 text-center">
             <RefreshCcw className="h-16 w-16 mx-auto text-muted-foreground/50 mb-4" />
             <h3 className="text-lg font-semibold mb-2">No hay suscripciones</h3>
             <p className="text-muted-foreground">
-              {searchQuery 
-                ? "No se encontraron suscripciones con esos criterios" 
+              {searchQuery
+                ? "No se encontraron suscripciones con esos criterios"
                 : "Las suscripciones apareceran aqui cuando agregues clientes con modelo de suscripcion"}
             </p>
           </CardContent>

@@ -1,0 +1,296 @@
+import React, { useEffect, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Form, FormControl, FormItem, FormLabel } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { useForm } from "react-hook-form";
+import { useToast } from "@/hooks/use-toast";
+
+type ProyectoRow = {
+  id: string;
+  creacion?: string | null;
+  nombre?: string | null;
+  tipo?: string | null;
+  correo_administracion?: string | null;
+  contrasena?: string | null;
+};
+
+export default function Proyecto() {
+  const [proyectos, setProyectos] = useState<ProyectoRow[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<ProyectoRow | null>(null);
+  const { toast } = useToast();
+
+  const form = useForm<Partial<ProyectoRow>>({
+    defaultValues: {
+      nombre: "",
+      tipo: "",
+      correo_administracion: "",
+      contrasena: "",
+    },
+  });
+
+  const sanitizeValues = (vals: Partial<ProyectoRow> | null) => ({
+    nombre: vals?.nombre?.toString().trim() ?? "",
+    tipo: vals?.tipo?.toString().trim() ?? "",
+    correo_administracion: vals?.correo_administracion?.toString().trim() ?? "",
+    contrasena: vals?.contrasena?.toString().trim() ?? "",
+  });
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+    const { data, error: e } = await supabase
+      .from<ProyectoRow>("proyectos")
+      .select("*")
+      .order("creacion", { ascending: false });
+
+    if (e) {
+      setError(e.message ?? "Error al cargar proyectos");
+      setProyectos([]);
+    } else if (Array.isArray(data)) {
+      setProyectos(data);
+    } else {
+      setProyectos([]);
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    let mounted = true;
+    load();
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const onSubmit = async (values: Partial<ProyectoRow>) => {
+    try {
+      if (editing) {
+        const { error: e } = await supabase
+          .from("proyectos")
+          .update({
+            nombre: values.nombre,
+            tipo: values.tipo,
+            correo_administracion: values.correo_administracion,
+            contrasena: values.contrasena,
+          })
+          .eq("id", editing.id)
+          .select();
+        if (e) throw e;
+        toast({ title: "Proyecto actualizado" });
+      } else {
+        const { error: e } = await supabase.from("proyectos").insert([
+          {
+            nombre: values.nombre,
+            tipo: values.tipo,
+            correo_administracion: values.correo_administracion,
+            contrasena: values.contrasena,
+          },
+        ]);
+        if (e) throw e;
+        toast({ title: "Proyecto creado" });
+      }
+      setDialogOpen(false);
+      setEditing(null);
+      form.reset();
+      await load();
+    } catch (err: any) {
+      // eslint-disable-next-line no-console
+      console.error("Error guardando proyecto:", err);
+      toast({
+        title: "Error al guardar proyecto",
+        description: err?.message ?? String(err),
+      });
+    }
+  };
+
+  const startEdit = (p: ProyectoRow) => {
+    setEditing(p);
+    form.reset(sanitizeValues(p));
+    setDialogOpen(true);
+  };
+
+  const deleteProject = async (id: string) => {
+    if (!confirm("Eliminar proyecto?")) return;
+    try {
+      const { error: e } = await supabase
+        .from("proyectos")
+        .delete()
+        .eq("id", id);
+      if (e) throw e;
+      toast({ title: "Proyecto eliminado" });
+      await load();
+    } catch (err: any) {
+      // eslint-disable-next-line no-console
+      console.error("Error eliminando proyecto:", err);
+      toast({
+        title: "Error al eliminar proyecto",
+        description: err?.message ?? String(err),
+      });
+    }
+  };
+
+  return (
+    <div className="p-6 lg:p-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Proyectos</h1>
+          <p className="text-muted-foreground mt-1">
+            Lista de proyectos. Los datos provienen de la tabla{" "}
+            <code>proyectos</code> en Supabase.
+          </p>
+        </div>
+        <div>
+          <Button
+            onClick={() => {
+              setEditing(null);
+              form.reset(sanitizeValues(null));
+              setDialogOpen(true);
+            }}
+          >
+            Crear Proyecto
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-6">
+        {loading && <p>Cargando proyectos...</p>}
+        {error && <p className="text-destructive">{error}</p>}
+
+        {!loading && proyectos.length === 0 && !error && (
+          <Card>
+            <CardContent className="p-6">No hay proyectos todavía.</CardContent>
+          </Card>
+        )}
+
+        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {proyectos.map((p) => (
+            <Card key={p.id} className="hover-elevate shadow-sm">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-semibold">
+                      {p.nombre ?? "Sin nombre"}
+                    </h3>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Badge variant="secondary">{p.tipo ?? "—"}</Badge>
+                    </div>
+                    <div className="mt-3 text-sm text-muted-foreground">
+                      <div>
+                        <strong>Admin:</strong> {p.correo_administracion ?? "—"}
+                      </div>
+                      <div className="mt-1">
+                        <strong>Creación:</strong>{" "}
+                        {p.creacion
+                          ? new Date(p.creacion).toLocaleString()
+                          : "—"}
+                      </div>
+                      <div className="mt-1">
+                        <strong>Contraseña:</strong>{" "}
+                        {p.contrasena ? "********" : "—"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-end gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => startEdit(p)}
+                    >
+                      Editar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => deleteProject(p.id)}
+                    >
+                      Eliminar
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(v) => {
+          setDialogOpen(v);
+          if (!v) {
+            setEditing(null);
+            form.reset(sanitizeValues(null));
+          } else {
+            if (editing) form.reset(sanitizeValues(editing));
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editing ? "Editar Proyecto" : "Nuevo Proyecto"}
+            </DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormItem>
+                <FormLabel>Nombre</FormLabel>
+                <FormControl>
+                  <Input {...form.register("nombre", { required: true })} />
+                </FormControl>
+              </FormItem>
+              <FormItem>
+                <FormLabel>Tipo</FormLabel>
+                <FormControl>
+                  <Input {...form.register("tipo")} />
+                </FormControl>
+              </FormItem>
+              <FormItem>
+                <FormLabel>Correo administración</FormLabel>
+                <FormControl>
+                  <Input {...form.register("correo_administracion")} />
+                </FormControl>
+              </FormItem>
+              <FormItem>
+                <FormLabel>Contraseña</FormLabel>
+                <FormControl>
+                  <Input {...form.register("contrasena")} />
+                </FormControl>
+              </FormItem>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setDialogOpen(false);
+                    setEditing(null);
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit">{editing ? "Guardar" : "Crear"}</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
