@@ -21,6 +21,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarFooter,
+  useSidebar,
 } from "@/components/ui/sidebar";
 
 const navigationItems = [
@@ -73,14 +74,18 @@ const navigationItems = [
 
 export function AppSidebar() {
   const [location] = useLocation();
+  const { isMobile, setOpenMobile } = useSidebar();
 
   return (
     <Sidebar>
-      <SidebarHeader className="border-b border-sidebar-border p-4">
+        <SidebarHeader className="border-b border-sidebar-border p-4">
         <Link
           href="/"
           className="flex items-center gap-3"
           data-testid="link-logo"
+          onClick={() => {
+            if (isMobile) setOpenMobile(false);
+          }}
         >
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-transparent">
             <img
@@ -115,6 +120,9 @@ export function AppSidebar() {
                       <Link
                         href={item.url}
                         data-testid={`link-nav-${item.title.toLowerCase()}`}
+                        onClick={() => {
+                          if (isMobile) setOpenMobile(false);
+                        }}
                       >
                         <item.icon className="h-5 w-5" />
                         <span className="font-medium">{item.title}</span>
@@ -131,7 +139,13 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
-              <Link href="/configuracion" data-testid="link-nav-settings">
+              <Link
+                href="/configuracion"
+                data-testid="link-nav-settings"
+                onClick={() => {
+                  if (isMobile) setOpenMobile(false);
+                }}
+              >
                 <Settings className="h-5 w-5" />
                 <span className="font-medium">Configuracion</span>
               </Link>
