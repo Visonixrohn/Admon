@@ -19,6 +19,7 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import Factura from "@/components/factura";
 
 type Props = {
   open: boolean;
@@ -49,7 +50,30 @@ export default function CobroForm({ open, onOpenChange, onCreated }: Props) {
   const [amount, setAmount] = useState<string>("");
   const [invoiceHtml, setInvoiceHtml] = useState<string | null>(null);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [invoiceAutoPrint, setInvoiceAutoPrint] = useState(false);
   const invoiceFrameRef = useRef<HTMLIFrameElement | null>(null);
+
+  // Fallback: when invoice modal opens and autoPrint is requested,
+  // trigger print after a short delay to ensure iframe content rendered.
+  useEffect(() => {
+    if (!invoiceOpen || !invoiceAutoPrint || !invoiceHtml) return;
+    const t = setTimeout(() => {
+      try {
+        const iframe = document.querySelector(
+          'iframe[title="Factura"]'
+        ) as HTMLIFrameElement | null;
+        const w = iframe?.contentWindow;
+        if (w) {
+          w.focus();
+          w.print();
+        }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("Error auto-imprimiendo factura (fallback):", err);
+      }
+    }, 800);
+    return () => clearTimeout(t);
+  }, [invoiceOpen, invoiceAutoPrint, invoiceHtml]);
 
   useEffect(() => {
     if (open) reset();
@@ -267,6 +291,9 @@ export default function CobroForm({ open, onOpenChange, onCreated }: Props) {
       // Valor pagado sigue siendo el monto efectivamente pagado
       valorPagado: formatCurrency(monto),
       proximaFecha: proximaFecha ? formatDate(proximaFecha) : "-",
+      // contrato-specific
+      prevRestante: typeof extra?.prevRestante === 'number' ? extra.prevRestante : null,
+      saldoActual: typeof extra?.saldoActual === 'number' ? extra.saldoActual : null,
     };
 
     const receiptTitle = (extra?.tipo ?? pago.tipo) === 'contrato' ? 'Recibo de Pago de Contrato' : 'Recibo de Pago de Suscripción';
@@ -311,14 +338,20 @@ export default function CobroForm({ open, onOpenChange, onCreated }: Props) {
 
           <div class="separator"></div>
 
-          <div class="client-info">
+            <div class="client-info">
             <h3>Datos del Cliente</h3>
-            <p><strong>Identidad:</strong> ${cliente.identidad}</p>
-            <p><strong>Nombre:</strong> ${cliente.nombre}</p>
-            <p><strong>Producto:</strong> ${cliente.producto}</p>
-            <p><strong>Valor a Pagar:</strong> <span class="value">${cliente.valorPagar}</span></p>
-            <p><strong>Valor Pagado:</strong> <span class="value">${cliente.valorPagado}</span></p>
-            <p><strong>Próxima Fecha de Pago:</strong> ${cliente.proximaFecha}</p>
+            <p><strong>Identidad:</strong> <span class="value"> ${cliente.identidad}</span></p>
+            <p><strong>Nombre:</strong>  <span class="value">${cliente.nombre}</span></p>
+            <p><strong>Producto:</strong>  <span class="value">${cliente.producto}</span></p>
+            ${ (extra?.tipo ?? pago.tipo) === 'contrato' ? `
+              <p><strong>Saldo:</strong> <span class="value"> ${formatCurrency(Number(cliente.prevRestante ?? 0))}</span></p>
+              <p><strong>Valor Pagado:</strong> <span class="value">${cliente.valorPagado}</span></p>
+              <p><strong>Saldo actual:</strong> <span class="value">${formatCurrency(Number(cliente.saldoActual ?? 0))}</span></p>
+            ` : `
+              <p><strong>Valor a Pagar:</strong> <span class="value">${cliente.valorPagar}</span></p>
+              <p><strong>Valor Pagado:</strong> <span class="value">${cliente.valorPagado}</span></p>
+              <p><strong>Próxima Fecha de Pago:</strong> ${cliente.proximaFecha}</p>
+            `}
           </div>
 
           <div class="separator"></div>
@@ -376,7 +409,8 @@ export default function CobroForm({ open, onOpenChange, onCreated }: Props) {
       setInvoiceHtml(html);
       // close cobro dialog happens elsewhere; open invoice modal in-app
       setInvoiceOpen(true);
-      // iframe will render the HTML; printing should be triggered by user's click on 'Imprimir'
+      setInvoiceAutoPrint(Boolean(extra.tipo === "contrato"));
+      // iframe will render the HTML; printing will be triggered automatically for contratos
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error("Error generando/iniciando factura:", err);
@@ -385,6 +419,9 @@ export default function CobroForm({ open, onOpenChange, onCreated }: Props) {
 
   async function onSave() {
     try {
+      let pagoRecord: any = null;
+      let extra: any = {};
+
       if (tipo === "suscripcion") {
         if (!selectedSub) {
           toast({ title: "Selecciona una suscripción" });
@@ -443,7 +480,7 @@ export default function CobroForm({ open, onOpenChange, onCreated }: Props) {
 
         // generar factura e imprimir
         try {
-          const pagoRecord = insertedData ?? payload;
+          pagoRecord = insertedData ?? payload;
           // pasar el valor mínimo calculado para que en la impresión "Valor a Pagar" sea ese mínimo
           await generateAndOpenInvoice(pagoRecord, { minimo: labelVal });
         } catch (err) {
@@ -502,16 +539,58 @@ export default function CobroForm({ open, onOpenChange, onCreated }: Props) {
           }
         }
 
-        // generar factura e imprimir
+        pagoRecord = insertedData ?? payload;
+
+        // compute remaining balance before and after this payment to include in invoice extra
         try {
-          const pagoRecord = insertedData ?? payload;
-          // pasar minimo e indicar tipo contrato para que la factura sea correcta
-          await generateAndOpenInvoice(pagoRecord, { minimo: monto, tipo: 'contrato' });
+          const { data: contrData, error: contrErr } = await supabase
+            .from("contratos")
+            .select("id,monto_total,pago_inicial")
+            .eq("id", selectedContrato.id)
+            .limit(1)
+            .single();
+          if (!contrErr && contrData) {
+            // sum pagos (including the one just inserted)
+            const { data: pagosData, error: pagosErr } = await supabase
+              .from("pagos")
+              .select("monto")
+              .eq("tipo", "contrato")
+              .eq("referencia_id", contrData.id);
+            let totalPagos = 0;
+            if (!pagosErr && Array.isArray(pagosData)) {
+              totalPagos = pagosData.reduce(
+                (s: number, r: any) => s + Number(r.monto ?? 0),
+                0
+              );
+            }
+            const restanteAfter =
+              Number(contrData.monto_total ?? 0) -
+              Number(contrData.pago_inicial ?? 0) -
+              totalPagos;
+            const pagoMonto = Number(pagoRecord.monto ?? 0);
+            const prevRestante = restanteAfter + pagoMonto;
+            const saldoActual = Math.max(0, prevRestante - pagoMonto);
+            extra.prevRestante = prevRestante;
+            extra.saldoActual = saldoActual;
+            extra.restanteAfter = restanteAfter;
+          }
+        } catch (e) {
+          // ignore
+        }
+
+        // generar factura e imprimir pasando extra/minimo/tipo
+        try {
+          await generateAndOpenInvoice(pagoRecord, {
+            ...extra,
+            minimo: monto,
+            tipo: "contrato",
+          });
         } catch (err) {
           // eslint-disable-next-line no-console
           console.error("Error generando factura:", err);
         }
       }
+
       onOpenChange(false);
       onCreated?.();
       queryClient.invalidateQueries({ queryKey: ["pagos"] });
@@ -740,29 +819,54 @@ export default function CobroForm({ open, onOpenChange, onCreated }: Props) {
       </Dialog>
 
       {invoiceOpen && invoiceHtml ? (
-        <Dialog open={invoiceOpen} onOpenChange={setInvoiceOpen}>
+        <Dialog
+          open={invoiceOpen}
+          onOpenChange={(v) => {
+            setInvoiceOpen(v);
+            if (!v) {
+              setInvoiceHtml(null);
+              setInvoiceAutoPrint(false);
+            }
+          }}
+        >
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Factura</DialogTitle>
             </DialogHeader>
 
             <div className="mt-2">
-              <iframe
-                ref={invoiceFrameRef}
-                srcDoc={invoiceHtml}
-                title="Factura"
-                className="w-full h-[70vh] border"
+              <Factura
+                open={invoiceOpen}
+                html={invoiceHtml}
+                onOpenChange={(v) => {
+                  setInvoiceOpen(v);
+                  if (!v) {
+                    setInvoiceHtml(null);
+                    setInvoiceAutoPrint(false);
+                  }
+                }}
+                autoPrint={invoiceAutoPrint}
               />
             </div>
 
             <DialogFooter>
               <div className="flex gap-2 justify-end w-full">
-                <Button variant="outline" onClick={() => setInvoiceOpen(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setInvoiceOpen(false);
+                    setInvoiceHtml(null);
+                    setInvoiceAutoPrint(false);
+                  }}
+                >
                   Cerrar
                 </Button>
                 <Button
                   onClick={() => {
-                    const w = invoiceFrameRef.current?.contentWindow;
+                    const iframe = document.querySelector(
+                      'iframe[title="Factura"]'
+                    ) as HTMLIFrameElement | null;
+                    const w = iframe?.contentWindow;
                     if (w) {
                       try {
                         w.focus();
