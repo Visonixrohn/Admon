@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 
 type Props = {
   onSuccess?: () => void;
@@ -13,6 +14,7 @@ export default function Login({ onSuccess }: Props) {
   const { toast } = useToast();
   const [clave, setClave] = useState("");
   const [loading, setLoading] = useState(false);
+  const [, setLocation] = useLocation();
 
   async function onSubmit() {
     try {
@@ -34,6 +36,13 @@ export default function Login({ onSuccess }: Props) {
         localStorage.setItem("admon-auth", "true");
         toast({ title: "Acceso concedido" });
         onSuccess?.();
+        // redirect to dashboard
+        try {
+          setLocation("/");
+        } catch (e) {
+          // fallback
+          window.location.href = "/";
+        }
       } else {
         toast({ title: "Clave incorrecta" });
       }

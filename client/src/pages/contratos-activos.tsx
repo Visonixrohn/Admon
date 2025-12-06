@@ -16,9 +16,25 @@ import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 
 export default function ContratosActivos() {
-  function ContractCard({ contract }: { contract: any }) {
+  function ContractCard({
+    contract,
+    onClick,
+  }: {
+    contract: any;
+    onClick?: () => void;
+  }) {
     const daysAgo = contract.fecha_de_creacion
       ? Math.floor(
           (Date.now() - new Date(contract.fecha_de_creacion).getTime()) /
@@ -27,7 +43,8 @@ export default function ContratosActivos() {
       : null;
     return (
       <Card
-        className={`hover-elevate ${
+        onClick={onClick}
+        className={`hover-elevate cursor-pointer ${
           !contract.estado || contract.estado !== "activo" ? "opacity-70" : ""
         }`}
       >
@@ -84,10 +101,85 @@ export default function ContratosActivos() {
                   : "-"}
               </span>
             </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Próximo pago</span>
+              <span className="text-sm">
+                {contract.proximo_pago
+                  ? formatDate(contract.proximo_pago)
+                  : "-"}
+              </span>
+            </div>
           </div>
         </CardContent>
       </Card>
     );
+  }
+
+  // Modal state for selected contract
+  const [selectedContract, setSelectedContract] = useState<any | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingDate, setEditingDate] = useState<string | null>(null);
+  const { toast } = useToast();
+  const [paymentsList, setPaymentsList] = useState<any[]>([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
+  const [anularOpen, setAnularOpen] = useState(false);
+  const [anularClave, setAnularClave] = useState("");
+  const [anularLoading, setAnularLoading] = useState(false);
+
+  function openContractModal(contract: any) {
+    setSelectedContract(contract);
+    // initialize editingDate as local datetime-local string
+    const val = contract?.proximo_pago
+      ? new Date(contract.proximo_pago).toISOString().slice(0, 16)
+      : "";
+    setEditingDate(val || null);
+    setModalOpen(true);
+    loadContractPayments(contract?.id);
+  }
+
+  async function loadContractPayments(contractId: string) {
+    if (!contractId) return;
+    try {
+      setPaymentsLoading(true);
+      const { data, error } = await supabase
+        .from("pagos")
+        .select("id,fecha_de_creacion,monto,notas,created_at")
+        .eq("referencia_id", contractId)
+        .eq("tipo", "contrato")
+        .order("fecha_de_creacion", { ascending: false });
+      if (error) throw error;
+      setPaymentsList(Array.isArray(data) ? data : []);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("Error cargando pagos del contrato:", err);
+      toast({ title: "Error cargando pagos", description: String(err) });
+      setPaymentsList([]);
+    } finally {
+      setPaymentsLoading(false);
+    }
+  }
+
+  async function updateProximoPago() {
+    if (!selectedContract) return;
+    try {
+      const iso = editingDate ? new Date(editingDate).toISOString() : null;
+      const { error } = await supabase
+        .from("contratos")
+        .update({ proximo_pago: iso })
+        .eq("id", selectedContract.id);
+      if (error) throw error;
+      toast({ title: "Próximo pago actualizado" });
+      queryClient.invalidateQueries({ queryKey: ["contratos-activos"] });
+      setModalOpen(false);
+      setSelectedContract(null);
+    } catch (err: any) {
+      // eslint-disable-next-line no-console
+      console.error("Error actualizando próximo pago:", err);
+      toast({
+        title: "Error actualizando próximo pago",
+        description: err?.message ?? String(err),
+      });
+    }
   }
 
   const [projectsMap, setProjectsMap] = useState<Record<string, string>>({});
@@ -186,6 +278,7 @@ export default function ContratosActivos() {
       r.valor_restante ??
         Number(r.monto_total ?? 0) - Number(r.pago_inicial ?? 0)
     ),
+    proximo_pago: r.proximo_pago ?? null,
     clienteName: clientsMap[r.cliente] ?? r.cliente,
     projectName: projectsMap[r.proyecto] ?? r.proyecto,
   }));
@@ -296,9 +389,257 @@ export default function ContratosActivos() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filtered.map((c) => (
-                <ContractCard key={c.id} contract={c} />
+                <ContractCard
+                  key={c.id}
+                  contract={c}
+                  onClick={() => openContractModal(c)}
+                />
               ))}
             </div>
+
+            {/* Detalle modal al tocar la card */}
+            <Dialog
+              open={modalOpen}
+              onOpenChange={(v) => {
+                if (!v) {
+                  setModalOpen(false);
+                  setSelectedContract(null);
+                } else setModalOpen(true);
+              }}
+            >
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Detalle del contrato</DialogTitle>
+                </DialogHeader>
+
+                <div className="space-y-4">
+                  {/* Header info */}
+                  <div>
+                    <p className="text-sm text-muted-foreground">Cliente</p>
+                    <p className="font-medium">
+                      {selectedContract?.clienteName ?? "-"}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Proyecto
+                    </p>
+                    <p className="font-medium">
+                      {selectedContract?.projectName ?? "-"}
+                    </p>
+                  </div>
+
+                  {/* Summary row: monto total / pago inicial / cantidad de pagos */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <p className="text-sm text-muted-foreground">
+                        Monto total
+                      </p>
+                      <p className="font-medium">
+                        {formatCurrency(selectedContract?.monto_total ?? 0)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">
+                        Pago inicial
+                      </p>
+                      <p className="font-medium">
+                        {formatCurrency(selectedContract?.pago_inicial ?? 0)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">
+                        Cantidad de pagos
+                      </p>
+                      <p className="font-medium">
+                        {selectedContract?.cantidad_de_pagos ?? "-"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Próximo pago editable */}
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      Próximo pago
+                    </p>
+                    <input
+                      type="datetime-local"
+                      value={editingDate ?? ""}
+                      onChange={(e) => setEditingDate(e.target.value || null)}
+                      className="mt-1 block w-full rounded-md border p-2"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Fecha actual:{" "}
+                      {selectedContract?.proximo_pago
+                        ? formatDate(selectedContract.proximo_pago)
+                        : "-"}
+                    </p>
+                  </div>
+
+                  {/* Pagos realizados table */}
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      Pagos realizados
+                    </p>
+                    <div className="mt-2 max-h-48 overflow-auto border rounded-md">
+                      {paymentsLoading ? (
+                        <div className="p-3 text-sm text-muted-foreground">
+                          Cargando...
+                        </div>
+                      ) : paymentsList.length === 0 ? (
+                        <div className="p-3 text-sm text-muted-foreground">
+                          No hay pagos registrados
+                        </div>
+                      ) : (
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="text-left">
+                              <th className="px-3 py-2 text-xs text-muted-foreground">
+                                Fecha
+                              </th>
+                              <th className="px-3 py-2 text-xs text-muted-foreground">
+                                Monto
+                              </th>
+                              <th className="px-3 py-2 text-xs text-muted-foreground">
+                                Notas
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {paymentsList.map((p) => (
+                              <tr key={p.id} className="border-t">
+                                <td className="px-3 py-2 align-top">
+                                  {p.fecha_de_creacion
+                                    ? formatDate(p.fecha_de_creacion)
+                                    : formatDate(p.created_at)}
+                                </td>
+                                <td className="px-3 py-2 align-top">
+                                  {formatCurrency(Number(p.monto ?? 0))}
+                                </td>
+                                <td className="px-3 py-2 align-top text-muted-foreground">
+                                  {p.notas ?? "-"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <DialogFooter>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setModalOpen(false);
+                        setSelectedContract(null);
+                      }}
+                    >
+                      Cerrar
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        await updateProximoPago();
+                      }}
+                    >
+                      Actualizar
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => setAnularOpen(true)}
+                    >
+                      Anular contrato
+                    </Button>
+                  </div>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* Modal para confirmar anulación */}
+            <Dialog open={anularOpen} onOpenChange={(v) => setAnularOpen(v)}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Confirmar anulación</DialogTitle>
+                  <DialogDescription>
+                    Para anular este contrato ingresa la clave de acceso.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3 mt-2">
+                  <label className="block text-sm font-medium">Clave</label>
+                  <input
+                    type="password"
+                    value={anularClave}
+                    onChange={(e) => setAnularClave(e.target.value)}
+                    className="block w-full rounded-md border p-2"
+                  />
+                </div>
+                <DialogFooter>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setAnularOpen(false);
+                        setAnularClave("");
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={async () => {
+                        if (!selectedContract) return;
+                        try {
+                          setAnularLoading(true);
+                          const { data, error } = await supabase
+                            .from("configuracion")
+                            .select("clave")
+                            .limit(1)
+                            .single();
+                          if (error) throw error;
+                          const stored = data?.clave ?? null;
+                          if (!stored) {
+                            toast({ title: "No hay clave configurada" });
+                            return;
+                          }
+                          if (anularClave !== stored) {
+                            toast({ title: "Clave incorrecta" });
+                            return;
+                          }
+
+                          const { error: upErr } = await supabase
+                            .from("contratos")
+                            .update({ estado: "anulado" })
+                            .eq("id", selectedContract.id);
+                          if (upErr) throw upErr;
+                          toast({ title: "Contrato anulado" });
+                          setAnularOpen(false);
+                          setModalOpen(false);
+                          setSelectedContract(null);
+                          setAnularClave("");
+                          queryClient.invalidateQueries({
+                            queryKey: ["contratos-activos"],
+                          });
+                          queryClient.invalidateQueries({
+                            queryKey: ["contratos"],
+                          });
+                        } catch (err: any) {
+                          // eslint-disable-next-line no-console
+                          console.error("Error anulando contrato:", err);
+                          toast({
+                            title: "Error anulando contrato",
+                            description: err?.message ?? String(err),
+                          });
+                        } finally {
+                          setAnularLoading(false);
+                        }
+                      }}
+                    >
+                      Confirmar
+                    </Button>
+                  </div>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </>
         )}
       </div>

@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormItem, FormLabel } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
+import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useClientes } from "@/hooks/use-clientes";
 import { mockClients } from "@/lib/mockData";
@@ -32,6 +33,7 @@ export default function Clients() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Cliente | null>(null);
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const {
     clientes,
@@ -41,6 +43,7 @@ export default function Clients() {
     deleteCliente,
     createClienteAsync,
     updateClienteAsync,
+    deleteClienteAsync,
   } = useClientes();
 
   const [localMock, setLocalMock] = useState<Cliente[] | null>(null);
@@ -78,6 +81,17 @@ export default function Clients() {
     setDialogOpen(true);
   };
 
+  // States for clave confirmation before edit/delete
+  const [claveOpen, setClaveOpen] = useState(false);
+  const [claveValue, setClaveValue] = useState("");
+  const [pendingEditCliente, setPendingEditCliente] = useState<Cliente | null>(
+    null
+  );
+  const [pendingDeleteClienteId, setPendingDeleteClienteId] = useState<
+    string | null
+  >(null);
+  const [claveLoading, setClaveLoading] = useState(false);
+
   return (
     <div className="p-6 lg:p-8 space-y-6">
       <div className="flex items-center justify-between">
@@ -102,7 +116,11 @@ export default function Clients() {
           (localMock && localMock.length > 0) ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {(localMock ?? clientes).map((c) => (
-              <Card key={c.id} className="hover-elevate shadow-sm">
+              <Card
+                key={c.id}
+                className="hover-elevate shadow-sm cursor-pointer"
+                onClick={() => setLocation(`/clientes/${c.id}`)}
+              >
                 <CardContent className="p-4">
                   <div className="flex items-start gap-4">
                     <Avatar className="h-14 w-14 flex-shrink-0">
@@ -126,16 +144,23 @@ export default function Clients() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => startEdit(c)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPendingEditCliente(c);
+                              setClaveValue("");
+                              setClaveOpen(true);
+                            }}
                           >
                             Editar
                           </Button>
                           <Button
                             size="sm"
                             variant="destructive"
-                            onClick={() => {
-                              if (confirm("Eliminar cliente?"))
-                                deleteCliente(c.id);
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPendingDeleteClienteId(c.id);
+                              setClaveValue("");
+                              setClaveOpen(true);
                             }}
                           >
                             Eliminar
@@ -295,6 +320,98 @@ export default function Clients() {
               </DialogFooter>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialogo para pedir clave antes de editar/eliminar cliente */}
+      <Dialog open={claveOpen} onOpenChange={(v) => setClaveOpen(v)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar acción</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            <p className="text-sm text-muted-foreground">
+              Ingresa la clave de acceso para continuar
+            </p>
+            <label className="block text-sm font-medium">Clave</label>
+            <input
+              type="password"
+              value={claveValue}
+              onChange={(e) => setClaveValue(e.target.value)}
+              className="block w-full rounded-md border p-2"
+            />
+          </div>
+          <DialogFooter>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setClaveOpen(false);
+                  setPendingEditCliente(null);
+                  setPendingDeleteClienteId(null);
+                  setClaveValue("");
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={async () => {
+                  try {
+                    setClaveLoading(true);
+                    const { data, error } = await (
+                      await import("@/lib/supabase")
+                    ).supabase
+                      .from("configuracion")
+                      .select("clave")
+                      .limit(1)
+                      .single();
+                    if (error) throw error;
+                    const stored = data?.clave ?? null;
+                    if (!stored) {
+                      toast({ title: "No hay clave configurada" });
+                      return;
+                    }
+                    if (claveValue !== stored) {
+                      toast({ title: "Clave incorrecta" });
+                      return;
+                    }
+
+                    // If editing was requested, proceed to open edit dialog
+                    if (pendingEditCliente) {
+                      startEdit(pendingEditCliente);
+                    }
+
+                    // If deletion requested, call delete
+                    if (pendingDeleteClienteId) {
+                      // call delete mutation (async variant) from hook
+                      if (deleteClienteAsync) {
+                        await deleteClienteAsync(pendingDeleteClienteId);
+                      } else {
+                        // fallback to non-async mutate
+                        deleteCliente(pendingDeleteClienteId);
+                      }
+                    }
+
+                    setClaveOpen(false);
+                    setPendingEditCliente(null);
+                    setPendingDeleteClienteId(null);
+                    setClaveValue("");
+                  } catch (err: any) {
+                    // eslint-disable-next-line no-console
+                    console.error("Error verificando clave:", err);
+                    toast({
+                      title: "Error verificando clave",
+                      description: err?.message ?? String(err),
+                    });
+                  } finally {
+                    setClaveLoading(false);
+                  }
+                }}
+              >
+                Confirmar
+              </Button>
+            </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

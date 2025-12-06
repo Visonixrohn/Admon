@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase";
@@ -32,6 +33,7 @@ export default function Proyecto() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ProyectoRow | null>(null);
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const form = useForm<Partial<ProyectoRow>>({
     defaultValues: {
@@ -124,8 +126,17 @@ export default function Proyecto() {
     setDialogOpen(true);
   };
 
+  // Clave confirmation state for edit/delete
+  const [claveOpen, setClaveOpen] = useState(false);
+  const [claveValue, setClaveValue] = useState("");
+  const [pendingEditProyecto, setPendingEditProyecto] =
+    useState<ProyectoRow | null>(null);
+  const [pendingDeleteProyectoId, setPendingDeleteProyectoId] = useState<
+    string | null
+  >(null);
+  const [claveLoading, setClaveLoading] = useState(false);
+
   const deleteProject = async (id: string) => {
-    if (!confirm("Eliminar proyecto?")) return;
     try {
       const { error: e } = await supabase
         .from("proyectos")
@@ -179,7 +190,11 @@ export default function Proyecto() {
 
         <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {proyectos.map((p) => (
-            <Card key={p.id} className="hover-elevate shadow-sm">
+            <Card
+              key={p.id}
+              className="hover-elevate shadow-sm cursor-pointer"
+              onClick={() => setLocation(`/clientes/proyecto/${p.id}`)}
+            >
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -210,14 +225,24 @@ export default function Proyecto() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => startEdit(p)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPendingEditProyecto(p);
+                        setClaveValue("");
+                        setClaveOpen(true);
+                      }}
                     >
                       Editar
                     </Button>
                     <Button
                       size="sm"
                       variant="destructive"
-                      onClick={() => deleteProject(p.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPendingDeleteProyectoId(p.id);
+                        setClaveValue("");
+                        setClaveOpen(true);
+                      }}
                     >
                       Eliminar
                     </Button>
@@ -289,6 +314,87 @@ export default function Proyecto() {
               </DialogFooter>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialogo para pedir clave antes de editar/eliminar proyecto */}
+      <Dialog open={claveOpen} onOpenChange={(v) => setClaveOpen(v)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar acción</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            <p className="text-sm text-muted-foreground">
+              Ingresa la clave de acceso para continuar
+            </p>
+            <label className="block text-sm font-medium">Clave</label>
+            <input
+              type="password"
+              value={claveValue}
+              onChange={(e) => setClaveValue(e.target.value)}
+              className="block w-full rounded-md border p-2"
+            />
+          </div>
+          <DialogFooter>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setClaveOpen(false);
+                  setPendingEditProyecto(null);
+                  setPendingDeleteProyectoId(null);
+                  setClaveValue("");
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={async () => {
+                  try {
+                    setClaveLoading(true);
+                    const { data, error } = await supabase
+                      .from("configuracion")
+                      .select("clave")
+                      .limit(1)
+                      .single();
+                    if (error) throw error;
+                    const stored = data?.clave ?? null;
+                    if (!stored) {
+                      toast({ title: "No hay clave configurada" });
+                      return;
+                    }
+                    if (claveValue !== stored) {
+                      toast({ title: "Clave incorrecta" });
+                      return;
+                    }
+
+                    if (pendingEditProyecto) {
+                      startEdit(pendingEditProyecto);
+                    }
+                    if (pendingDeleteProyectoId) {
+                      await deleteProject(pendingDeleteProyectoId);
+                    }
+
+                    setClaveOpen(false);
+                    setPendingEditProyecto(null);
+                    setPendingDeleteProyectoId(null);
+                    setClaveValue("");
+                  } catch (err: any) {
+                    // eslint-disable-next-line no-console
+                    console.error("Error verificando clave:", err);
+                    toast({
+                      title: "Error verificando clave",
+                      description: err?.message ?? String(err),
+                    });
+                  } finally {
+                    setClaveLoading(false);
+                  }
+                }}
+              >
+                Confirmar
+              </Button>
+            </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

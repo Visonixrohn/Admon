@@ -358,16 +358,36 @@ export default function Dashboard() {
       const now = new Date();
       const soon = new Date();
       soon.setDate(now.getDate() + 30);
-      const { data, error } = await supabase
+      // Fetch upcoming suscripciones
+      const { data: subsData, error: subsErr } = await supabase
         .from("suscripciones")
         .select("id,cliente,proyecto,proxima_fecha_de_pago,mensualidad")
         .order("proxima_fecha_de_pago", { ascending: true })
         .limit(10);
-      if (error) throw error;
-      const subs = Array.isArray(data) ? data : [];
+      if (subsErr) throw subsErr;
+      const subs = Array.isArray(subsData) ? subsData : [];
+
+      // Fetch contratos that have proximo_pago set
+      const { data: contratosData, error: contratosErr } = await supabase
+        .from("contratos")
+        .select(
+          "id,cliente,proyecto,proximo_pago,monto_total,pago_inicial,cantidad_de_pagos"
+        )
+        .order("proximo_pago", { ascending: true })
+        .limit(10);
+      if (contratosErr) throw contratosErr;
+      const contratos = Array.isArray(contratosData) ? contratosData : [];
+
+      // Collect client ids from both sets
       const clientIds = Array.from(
-        new Set(subs.map((s: any) => s.cliente).filter(Boolean))
+        new Set(
+          [
+            ...subs.map((s: any) => s.cliente),
+            ...contratos.map((c: any) => c.cliente),
+          ].filter(Boolean)
+        )
       );
+
       const { data: clientsRes } = await supabase
         .from("clientes")
         .select("id,nombre")
@@ -376,7 +396,34 @@ export default function Dashboard() {
       (Array.isArray(clientsRes) ? clientsRes : []).forEach((c: any) => {
         if (c?.id) cMap[c.id] = c.nombre;
       });
-      return subs.map((s: any) => ({
+
+      // For contratos, fetch pagos to compute paid sums and remaining
+      const contratoIds = contratos.map((c: any) => c.id).filter(Boolean);
+      let pagosMap: Record<string, number> = {};
+      if (contratoIds.length > 0) {
+        const { data: pagosData, error: pagosErr } = await supabase
+          .from("pagos")
+          .select("referencia_id,monto,tipo")
+          .in("referencia_id", contratoIds)
+          .eq("tipo", "contrato");
+        if (pagosErr) {
+          // log but continue
+          // eslint-disable-next-line no-console
+          console.error(
+            "Error cargando pagos para contratos en dashboard:",
+            pagosErr
+          );
+        } else {
+          const pagos = Array.isArray(pagosData) ? pagosData : [];
+          pagos.forEach((p: any) => {
+            if (!p || !p.referencia_id) return;
+            const key = String(p.referencia_id);
+            pagosMap[key] = (pagosMap[key] ?? 0) + Number(p.monto ?? 0);
+          });
+        }
+      }
+
+      const subsItems = subs.map((s: any) => ({
         payment: {
           id: s.id,
           amount: s.mensualidad,
@@ -385,6 +432,41 @@ export default function Dashboard() {
         },
         clientName: cMap[s.cliente] ?? s.cliente ?? "Cliente",
       }));
+
+      const contratoItems = contratos
+        .filter((c: any) => c.proximo_pago)
+        .map((c: any) => {
+          // Calculate installment amount as (monto_total - pago_inicial) / cantidad_de_pagos
+          const montoTotal = Number(c.monto_total ?? 0);
+          const pagoInicial = Number(c.pago_inicial ?? 0);
+          const cuotas = Math.max(1, Number(c.cantidad_de_pagos ?? 1));
+          const cuota = (montoTotal - pagoInicial) / cuotas;
+          const amount = Number.isFinite(cuota)
+            ? cuota
+            : Math.max(0, montoTotal - pagoInicial);
+          return {
+            payment: {
+              id: c.id,
+              amount: amount,
+              dueDate: c.proximo_pago,
+              status: "pendiente",
+            },
+            clientName: cMap[c.cliente] ?? c.cliente ?? "Cliente",
+          };
+        });
+
+      // Combine both lists and sort by dueDate
+      const combined = [...subsItems, ...contratoItems].sort((a, b) => {
+        const ad = a.payment.dueDate
+          ? new Date(a.payment.dueDate).getTime()
+          : 0;
+        const bd = b.payment.dueDate
+          ? new Date(b.payment.dueDate).getTime()
+          : 0;
+        return ad - bd;
+      });
+
+      return combined.slice(0, 10);
     },
   });
 

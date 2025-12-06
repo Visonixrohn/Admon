@@ -52,6 +52,7 @@ export default function CobroForm({ open, onOpenChange, onCreated }: Props) {
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [invoiceAutoPrint, setInvoiceAutoPrint] = useState(false);
   const invoiceFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const [nextPaymentDate, setNextPaymentDate] = useState<string | null>(null);
 
   // Fallback: when invoice modal opens and autoPrint is requested,
   // trigger print after a short delay to ensure iframe content rendered.
@@ -89,6 +90,7 @@ export default function CobroForm({ open, onOpenChange, onCreated }: Props) {
     setAmount("");
     setSubsFilter("");
     setContratosFilter("");
+    setNextPaymentDate(null);
   }
 
   async function loadSubs() {
@@ -292,11 +294,16 @@ export default function CobroForm({ open, onOpenChange, onCreated }: Props) {
       valorPagado: formatCurrency(monto),
       proximaFecha: proximaFecha ? formatDate(proximaFecha) : "-",
       // contrato-specific
-      prevRestante: typeof extra?.prevRestante === 'number' ? extra.prevRestante : null,
-      saldoActual: typeof extra?.saldoActual === 'number' ? extra.saldoActual : null,
+      prevRestante:
+        typeof extra?.prevRestante === "number" ? extra.prevRestante : null,
+      saldoActual:
+        typeof extra?.saldoActual === "number" ? extra.saldoActual : null,
     };
 
-    const receiptTitle = (extra?.tipo ?? pago.tipo) === 'contrato' ? 'Recibo de Pago de Contrato' : 'Recibo de Pago de Suscripción';
+    const receiptTitle =
+      (extra?.tipo ?? pago.tipo) === "contrato"
+        ? "Recibo de Pago de Contrato"
+        : "Recibo de Pago de Suscripción";
 
     return `<!doctype html>
       <html>
@@ -340,18 +347,34 @@ export default function CobroForm({ open, onOpenChange, onCreated }: Props) {
 
             <div class="client-info">
             <h3>Datos del Cliente</h3>
-            <p><strong>Identidad:</strong> <span class="value"> ${cliente.identidad}</span></p>
-            <p><strong>Nombre:</strong>  <span class="value">${cliente.nombre}</span></p>
-            <p><strong>Producto:</strong>  <span class="value">${cliente.producto}</span></p>
-            ${ (extra?.tipo ?? pago.tipo) === 'contrato' ? `
-              <p><strong>Saldo:</strong> <span class="value"> ${formatCurrency(Number(cliente.prevRestante ?? 0))}</span></p>
-              <p><strong>Valor Pagado:</strong> <span class="value">${cliente.valorPagado}</span></p>
-              <p><strong>Saldo actual:</strong> <span class="value">${formatCurrency(Number(cliente.saldoActual ?? 0))}</span></p>
-            ` : `
+            <p><strong>Identidad:</strong> <span class="value"> ${
+              cliente.identidad
+            }</span></p>
+            <p><strong>Nombre:</strong>  <span class="value">${
+              cliente.nombre
+            }</span></p>
+            <p><strong>Producto:</strong>  <span class="value">${
+              cliente.producto
+            }</span></p>
+            ${
+              (extra?.tipo ?? pago.tipo) === "contrato"
+                ? `
+              <p><strong>Saldo:</strong> <span class="value"> ${formatCurrency(
+                Number(cliente.prevRestante ?? 0)
+              )}</span></p>
+              <p><strong>Valor Pagado:</strong> <span class="value">${
+                cliente.valorPagado
+              }</span></p>
+              <p><strong>Saldo actual:</strong> <span class="value">${formatCurrency(
+                Number(cliente.saldoActual ?? 0)
+              )}</span></p>
+            `
+                : `
               <p><strong>Valor a Pagar:</strong> <span class="value">${cliente.valorPagar}</span></p>
               <p><strong>Valor Pagado:</strong> <span class="value">${cliente.valorPagado}</span></p>
               <p><strong>Próxima Fecha de Pago:</strong> ${cliente.proximaFecha}</p>
-            `}
+            `
+            }
           </div>
 
           <div class="separator"></div>
@@ -541,6 +564,33 @@ export default function CobroForm({ open, onOpenChange, onCreated }: Props) {
 
         pagoRecord = insertedData ?? payload;
 
+        // If user provided a next payment date, update the contrato.proximo_pago
+        try {
+          if (nextPaymentDate) {
+            const isoNext = new Date(nextPaymentDate).toISOString();
+            const { error: upNextErr } = await supabase
+              .from("contratos")
+              .update({ proximo_pago: isoNext })
+              .eq("id", selectedContrato.id);
+            if (upNextErr) {
+              // eslint-disable-next-line no-console
+              console.error(
+                "Error actualizando proximo_pago en contrato:",
+                upNextErr
+              );
+            } else {
+              // update local selectedContrato
+              setSelectedContrato({
+                ...selectedContrato,
+                proximo_pago: isoNext,
+              });
+            }
+          }
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error("Error al actualizar proximo_pago:", e);
+        }
+
         // compute remaining balance before and after this payment to include in invoice extra
         try {
           const { data: contrData, error: contrErr } = await supabase
@@ -722,6 +772,17 @@ export default function CobroForm({ open, onOpenChange, onCreated }: Props) {
                         }`}
                         onClick={async () => {
                           setSelectedContrato(c);
+                          // initialize nextPaymentDate from contrato if available
+                          try {
+                            const val = c?.proximo_pago
+                              ? new Date(c.proximo_pago)
+                                  .toISOString()
+                                  .slice(0, 16)
+                              : "";
+                            setNextPaymentDate(val || null);
+                          } catch (e) {
+                            setNextPaymentDate(null);
+                          }
                           try {
                             const restante = await calcularRestanteContrato(c);
                             setContratoRestante(restante);
@@ -803,6 +864,15 @@ export default function CobroForm({ open, onOpenChange, onCreated }: Props) {
                   step="0.01"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
+                />
+                <label className="block text-sm font-medium mb-1 mt-3">
+                  Próximo pago (opcional)
+                </label>
+                <input
+                  type="datetime-local"
+                  value={nextPaymentDate ?? ""}
+                  onChange={(e) => setNextPaymentDate(e.target.value || null)}
+                  className="mt-1 block w-full rounded-md border p-2"
                 />
                 <div className="mt-4 flex justify-between">
                   <Button variant="outline" onClick={() => setStep(2)}>

@@ -1,7 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from "@/components/ui/card";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Edit, LogOut, Clock, MapPin, Phone, Key } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -91,73 +100,134 @@ export default function Configuracion() {
 
   return (
     <div className="p-6 lg:p-8">
-     
+      <div className="max-w-4xl mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <Avatar className="bg-gradient-to-br from-primary/10 to-secondary/10">
+              <AvatarFallback>{(cfg?.nombre || "-").charAt(0)}</AvatarFallback>
+            </Avatar>
+            <div>
+              <h1 className="text-2xl font-semibold">Configuración</h1>
+              <p className="text-sm text-muted-foreground">
+                Ajustes generales y datos de la organización
+              </p>
+            </div>
+          </div>
 
-      <div className="mt-6 max-w-3xl">
-        <Card>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold">Datos</h2>
-                <p className="text-sm text-muted-foreground">
-                  Información que aparece en facturas y documentos.
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+              <Edit className="w-4 h-4" />
+              Editar
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => {
+                try {
+                  localStorage.removeItem("admon-auth");
+                } catch (e) {}
+                if (typeof window !== "undefined")
+                  window.location.href = "/login";
+              }}
+            >
+              <LogOut className="w-4 h-4" />
+              Cerrar sesión
+            </Button>
+          </div>
+        </div>
+
+        <Card className="overflow-hidden">
+          <CardHeader>
+            <CardTitle>Datos</CardTitle>
+            <CardDescription>
+              Información que aparece en facturas y documentos.
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-2 space-y-4">
+              <div className="flex items-center justify-between bg-muted/40 rounded-lg p-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Nombre</p>
+                  <p className="font-medium text-lg">{cfg?.nombre ?? "-"}</p>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  RTN <div className="font-medium">{cfg?.rtn ?? "-"}</div>
+                </div>
+              </div>
+
+              <div className="bg-muted/40 rounded-lg p-4">
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <MapPin className="w-4 h-4" /> Dirección
+                </p>
+                <p className="font-medium mt-1">{cfg?.direccion ?? "-"}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-muted/40 rounded-lg p-4">
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <Key className="w-4 h-4" /> Proyecto
+                  </p>
+                  <p className="font-medium mt-1">{cfg?.proyecto ?? "-"}</p>
+                </div>
+                <div className="bg-muted/40 rounded-lg p-4">
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <Phone className="w-4 h-4" /> Teléfono
+                  </p>
+                  <p className="font-medium mt-1">{cfg?.telefono ?? "-"}</p>
+                </div>
+              </div>
+            </div>
+
+            <aside className="space-y-4">
+              <div className="rounded-lg bg-gradient-to-br from-white/60 to-muted/10 p-4 shadow-sm">
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Clock className="w-4 h-4" /> Última actualización
+                </p>
+                <p className="font-medium mt-1">
+                  {cfg && cfg.updated_at ? formatDate(cfg.updated_at) : "-"}
                 </p>
               </div>
-              <div>
-                <Button onClick={() => setOpen(true)}>Editar</Button>
-              </div>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-              <div>
-                <p className="text-sm text-muted-foreground">Nombre</p>
-                <p className="font-medium">{cfg?.nombre ?? "-"}</p>
+              <div className="rounded-lg p-4 border border-border flex flex-col gap-2">
+                <Button size="sm" onClick={() => setOpen(true)}>
+                  <Edit className="w-4 h-4" />
+                  Editar datos
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(JSON.stringify(cfg ?? {}));
+                  }}
+                >
+                  Copiar JSON
+                </Button>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">RTN</p>
-                <p className="font-medium">{cfg?.rtn ?? "-"}</p>
-              </div>
-              <div className="md:col-span-2">
-                <p className="text-sm text-muted-foreground">Dirección</p>
-                <p className="font-medium">{cfg?.direccion ?? "-"}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Proyecto</p>
-                <p className="font-medium">{cfg?.proyecto ?? "-"}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Teléfono</p>
-                <p className="font-medium">{cfg?.telefono ?? "-"}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Clave</p>
-                <p className="font-medium">{cfg?.clave ? "********" : "-"}</p>
-              </div>
-            </div>
-
-            {cfg && cfg.updated_at && (
-              <div className="text-sm text-muted-foreground mt-4">
-                Última actualización: {formatDate(cfg.updated_at)}
-              </div>
-            )}
+            </aside>
           </CardContent>
-        </Card>
 
-        <div className="mt-4 flex justify-end">
-          <Button
-            variant="destructive"
-            onClick={() => {
-              try {
-                localStorage.removeItem("admon-auth");
-              } catch (e) {
-                /* noop */
-              }
-              if (typeof window !== "undefined") window.location.href = "/login";
-            }}
-          >
-            Cerrar sesión
-          </Button>
-        </div>
+          <CardFooter>
+            <div className="w-full flex justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  if (cfg) {
+                    setNombre(cfg.nombre ?? "");
+                    setRtn(cfg.rtn ?? "");
+                    setDireccion(cfg.direccion ?? "");
+                    setProyecto(cfg.proyecto ?? "");
+                    setTelefono(cfg.telefono ?? "");
+                    setClave(cfg.clave ?? "");
+                  }
+                }}
+              >
+                Reset
+              </Button>
+            </div>
+          </CardFooter>
+        </Card>
 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent>
@@ -189,24 +259,26 @@ export default function Configuracion() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Proyecto
-                </label>
-                <Input
-                  value={proyecto}
-                  onChange={(e) => setProyecto(e.target.value)}
-                />
-              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Proyecto
+                  </label>
+                  <Input
+                    value={proyecto}
+                    onChange={(e) => setProyecto(e.target.value)}
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Teléfono
-                </label>
-                <Input
-                  value={telefono}
-                  onChange={(e) => setTelefono(e.target.value)}
-                />
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Teléfono
+                  </label>
+                  <Input
+                    value={telefono}
+                    onChange={(e) => setTelefono(e.target.value)}
+                  />
+                </div>
               </div>
 
               <div>
@@ -222,7 +294,8 @@ export default function Configuracion() {
             <DialogFooter>
               <div className="flex gap-2">
                 <Button
-                  variant="secondary"
+                  variant="outline"
+                  size="sm"
                   onClick={() => {
                     // reset to original
                     if (cfg) {
@@ -246,6 +319,7 @@ export default function Configuracion() {
                   Cancelar
                 </Button>
                 <Button
+                  size="sm"
                   onClick={async () => {
                     await onSave();
                     setOpen(false);
