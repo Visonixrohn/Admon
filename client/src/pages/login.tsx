@@ -19,6 +19,10 @@ export default function Login({ onSuccess }: Props) {
 
   // autofocus al input
   useEffect(() => {
+    // ensure persistent flag is set to false while on login to avoid stale cached truthy values
+    try {
+      localStorage.setItem("admon-auth", "false");
+    } catch {}
     const el = document.getElementById("clave-input");
     el?.focus();
   }, []);

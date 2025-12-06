@@ -20,7 +20,8 @@ export default function Configuracion() {
   const { toast } = useToast();
   function logout() {
     try {
-      localStorage.removeItem("admon-auth");
+      // mark as logged out explicitly to avoid stale truthy values from cached bundles
+      localStorage.setItem("admon-auth", "false");
       toast({ title: "Sesión cerrada" });
     } catch (e) {
       // ignore
