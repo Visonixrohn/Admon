@@ -63,6 +63,7 @@ function App() {
   }, [authed, location, setLocation]);
 
   if (authed === null) return null;
+  if (!authed) return <Login onSuccess={() => setAuthed(true)} />;
   const sidebarStyle = {
     "--sidebar-width": "16rem",
     "--sidebar-width-icon": "3.5rem",
