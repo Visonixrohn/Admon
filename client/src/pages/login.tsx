@@ -57,7 +57,7 @@ export default function Login({ onSuccess }: Props) {
 
   return (
     <div className="h-screen flex items-center justify-center bg-slate-900 p-4">
-      <div style={{ width: 420 }}>
+      <div className="w-full max-w-md">
         <Card className="bg-slate-800 text-white border-transparent">
           <CardContent>
             <div className="flex flex-col items-center">
