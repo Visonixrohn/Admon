@@ -66,6 +66,8 @@ export default function Login({ onSuccess }: Props) {
                   type="password"
                   value={clave}
                   onChange={(e) => setClave(e.target.value)}
+                  className="text-black placeholder:text-gray-400 bg-white"
+                  style={{ color: '#000' }}
                 />
               </div>
 
