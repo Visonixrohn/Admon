@@ -25,51 +25,15 @@ import {
 } from "@/components/ui/sidebar";
 
 const navigationItems = [
-  {
-    title: "Dashboard",
-    url: "/",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "Clientes",
-    url: "/clientes",
-    icon: Users,
-  },
-  {
-    title: "Proyecto",
-    url: "/clientes/proyecto",
-    icon: Code2,
-  },
-  {
-    title: "Venta",
-    url: "/clientes/proyecto/ventas",
-    icon: ShoppingCart,
-  },
-  {
-    title: "Pagos",
-    url: "/pagos",
-    icon: CreditCard,
-  },
-  {
-    title: "Estado de cuentas",
-    url: "/pagos/estado-de-cuentas",
-    icon: FileText,
-  },
-  {
-    title: "Suscripciones",
-    url: "/suscripciones",
-    icon: RefreshCcw,
-  },
-  {
-    title: "Contratos Activos",
-    url: "/contratos-activos",
-    icon: FileText,
-  },
-  {
-    title: "Estadisticas",
-    url: "/estadisticas",
-    icon: BarChart3,
-  },
+  { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Clientes", url: "/clientes", icon: Users },
+  { title: "Proyecto", url: "/clientes/proyecto", icon: Code2 },
+  { title: "Venta", url: "/clientes/proyecto/ventas", icon: ShoppingCart },
+  { title: "Contratos Activos", url: "/contratos-activos", icon: FileText },
+  { title: "Suscripciones", url: "/suscripciones", icon: RefreshCcw },
+  { title: "Pagos", url: "/pagos", icon: CreditCard },
+  { title: "Estado de cuentas", url: "/pagos/estado-de-cuentas", icon: FileText },
+  { title: "Estadisticas", url: "/estadisticas", icon: BarChart3 },
 ];
 
 export function AppSidebar() {
