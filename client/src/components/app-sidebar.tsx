@@ -76,6 +76,16 @@ export function AppSidebar() {
   const [location] = useLocation();
   const { isMobile, setOpenMobile } = useSidebar();
 
+  // quick client-side guard: don't render sidebar if user is not authenticated
+  if (typeof window !== "undefined") {
+    try {
+      const v = localStorage.getItem("admon-auth");
+      if (v !== "true") return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   return (
     <Sidebar>
         <SidebarHeader className="border-b border-sidebar-border p-4">
