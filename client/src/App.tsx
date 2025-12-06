@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -23,22 +23,32 @@ import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import React, { useEffect, useState } from "react";
 
-function Router() {
+function Router({ authed, onLogin }: { authed: boolean; onLogin: () => void }) {
+  const [location, setLocation] = useLocation();
+
+  // If authenticated and currently at /login, redirect to home
+  if (authed && location === "/login") {
+    setLocation("/");
+  }
+
+  const wrap = (C: any) => (props: any) => (authed ? <C {...props} /> : <Login onSuccess={onLogin} />);
+
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/clientes/proyecto/ventas" component={ProyectoVentas} />
-      <Route path="/clientes/proyecto/:id" component={ProyectoDetalle} />
-      <Route path="/clientes/proyecto" component={Proyecto} />
-      <Route path="/clientes/:id" component={ClienteDetalle} />
-      <Route path="/clientes" component={Clients} />
-      <Route path="/contratos-activos" component={ContratosActivos} />
-      <Route path="/configuracion" component={Configuracion} />
-      <Route path="/pagos" component={Payments} />
-      <Route path="/pagos/estado-de-cuentas" component={EstadoCuentas} />
-      <Route path="/suscripciones" component={Subscriptions} />
-      <Route path="/estadisticas" component={Statistics} />
-      <Route component={NotFound} />
+      <Route path="/" component={wrap(Dashboard)} />
+      <Route path="/clientes/proyecto/ventas" component={wrap(ProyectoVentas)} />
+      <Route path="/clientes/proyecto/:id" component={wrap(ProyectoDetalle)} />
+      <Route path="/clientes/proyecto" component={wrap(Proyecto)} />
+      <Route path="/clientes/:id" component={wrap(ClienteDetalle)} />
+      <Route path="/clientes" component={wrap(Clients)} />
+      <Route path="/contratos-activos" component={wrap(ContratosActivos)} />
+      <Route path="/configuracion" component={wrap(Configuracion)} />
+      <Route path="/pagos" component={wrap(Payments)} />
+      <Route path="/pagos/estado-de-cuentas" component={wrap(EstadoCuentas)} />
+      <Route path="/suscripciones" component={wrap(Subscriptions)} />
+      <Route path="/estadisticas" component={wrap(Statistics)} />
+      <Route path="/login" component={() => <Login onSuccess={onLogin} />} />
+      <Route component={wrap(NotFound)} />
     </Switch>
   );
 }
@@ -56,7 +66,6 @@ function App() {
   }, []);
 
   if (authed === null) return null;
-  if (!authed) return <Login onSuccess={() => setAuthed(true)} />;
   const sidebarStyle = {
     "--sidebar-width": "16rem",
     "--sidebar-width-icon": "3.5rem",
@@ -75,7 +84,7 @@ function App() {
                   <ThemeToggle />
                 </header>
                 <main className="flex-1 overflow-auto">
-                  <Router />
+                  <Router authed={authed} onLogin={() => setAuthed(true)} />
                 </main>
               </div>
             </div>
