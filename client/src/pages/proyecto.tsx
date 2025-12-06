@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
+import { Search } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,7 @@ export default function Proyecto() {
   const [proyectos, setProyectos] = useState<ProyectoRow[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ProyectoRow | null>(null);
@@ -156,7 +158,7 @@ export default function Proyecto() {
   };
 
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-6 lg:p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Proyectos</h1>
@@ -178,7 +180,18 @@ export default function Proyecto() {
         </div>
       </div>
 
-      <div className="mt-6">
+      {/* Barra de búsqueda */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por nombre o tipo..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
+      <div>
         {loading && <p>Cargando proyectos...</p>}
         {error && <p className="text-destructive">{error}</p>}
 
@@ -188,64 +201,76 @@ export default function Proyecto() {
           </Card>
         )}
 
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {proyectos.map((p) => (
+        <div className="space-y-3">
+          {proyectos
+            .filter((p) => {
+              if (!searchQuery) return true;
+              const search = searchQuery.toLowerCase();
+              const nombre = (p.nombre || "").toLowerCase();
+              const tipo = (p.tipo || "").toLowerCase();
+              return nombre.includes(search) || tipo.includes(search);
+            })
+            .map((p) => (
             <Card
               key={p.id}
-              className="hover-elevate shadow-sm cursor-pointer"
+              className="hover-elevate shadow-sm cursor-pointer transition-all"
               onClick={() => setLocation(`/clientes/proyecto/${p.id}`)}
             >
               <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className="text-lg font-semibold">
-                      {p.nombre ?? "Sin nombre"}
-                    </h3>
-                    <div className="mt-2 flex items-center gap-2">
-                      <Badge variant="secondary">{p.tipo ?? "—"}</Badge>
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-5 gap-4 items-center">
+                    <div className="min-w-0 sm:col-span-2">
+                      <h3 className="text-lg font-semibold truncate">
+                        {p.nombre ?? "Sin nombre"}
+                      </h3>
+                      <Badge variant="secondary" className="mt-1">{p.tipo ?? "—"}</Badge>
                     </div>
-                    <div className="mt-3 text-sm text-muted-foreground">
-                      <div>
-                        <strong>Admin:</strong> {p.correo_administracion ?? "—"}
+                    
+                    <div className="text-sm min-w-0">
+                      <div className="text-xs uppercase font-medium text-muted-foreground mb-1">
+                        Admin
                       </div>
-                      <div className="mt-1">
-                        <strong>Creación:</strong>{" "}
+                      <div className="truncate">{p.correo_administracion ?? "—"}</div>
+                    </div>
+
+                    <div className="text-sm min-w-0">
+                      <div className="text-xs uppercase font-medium text-muted-foreground mb-1">
+                        Contraseña
+                      </div>
+                      <div className="truncate font-mono">{p.contrasena ? "********" : "—"}</div>
+                    </div>
+
+                    <div className="flex items-center gap-2 justify-end">
+                      <div className="text-xs text-muted-foreground hidden sm:block">
                         {p.creacion
-                          ? new Date(p.creacion).toLocaleString()
+                          ? new Date(p.creacion).toLocaleDateString()
                           : "—"}
                       </div>
-                      <div className="mt-1">
-                        <strong>Contraseña:</strong>{" "}
-                        {p.contrasena ? "********" : "—"}
-                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPendingEditProyecto(p);
+                          setClaveValue("");
+                          setClaveOpen(true);
+                        }}
+                      >
+                        Editar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPendingDeleteProyectoId(p.id);
+                          setClaveValue("");
+                          setClaveOpen(true);
+                        }}
+                      >
+                        Eliminar
+                      </Button>
                     </div>
-                  </div>
-
-                  <div className="flex flex-col items-end gap-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setPendingEditProyecto(p);
-                        setClaveValue("");
-                        setClaveOpen(true);
-                      }}
-                    >
-                      Editar
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setPendingDeleteProyectoId(p.id);
-                        setClaveValue("");
-                        setClaveOpen(true);
-                      }}
-                    >
-                      Eliminar
-                    </Button>
                   </div>
                 </div>
               </CardContent>

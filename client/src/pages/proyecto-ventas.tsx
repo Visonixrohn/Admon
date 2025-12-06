@@ -3,6 +3,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "wouter";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import VentaForm from "@/components/proyecto-venta-form";
 import { useToast } from "@/hooks/use-toast";
 
@@ -24,6 +27,7 @@ export default function ProyectoVentas() {
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<VentaRow> | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [projectsMap, setProjectsMap] = useState<Record<string, string>>({});
   const [clientsMap, setClientsMap] = useState<Record<string, string>>({});
 
@@ -105,7 +109,7 @@ export default function ProyectoVentas() {
 
   return (
     <>
-      <div className="p-6 lg:p-8">
+      <div className="p-6 lg:p-8 space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold">Ventas de Proyectos</h1>
@@ -119,7 +123,18 @@ export default function ProyectoVentas() {
           </div>
         </div>
 
-        <div className="mt-6">
+        {/* Barra de búsqueda */}
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por proyecto o cliente..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+
+        <div>
           {loading && <p>Cargando ventas...</p>}
           {error && <p className="text-destructive">{error}</p>}
 
@@ -132,53 +147,65 @@ export default function ProyectoVentas() {
           )}
 
           {!loading && ventas.length > 0 && (
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {ventas.map((v) => (
-                <Card key={v.id} className="hover-elevate shadow-sm">
+            <div className="space-y-3">
+              {ventas
+                .filter((v) => {
+                  if (!searchQuery) return true;
+                  const search = searchQuery.toLowerCase();
+                  const proyecto = (projectsMap[v.proyecto ?? ""] || v.proyecto || "").toLowerCase();
+                  const cliente = (clientsMap[v.cliente ?? ""] || v.cliente || "").toLowerCase();
+                  return proyecto.includes(search) || cliente.includes(search);
+                })
+                .map((v) => (
+                <Card key={v.id} className="hover-elevate shadow-sm transition-all">
                   <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h3 className="text-lg font-semibold">
-                          <Link href={`/clientes/proyecto/${v.proyecto}`}>
-                            {projectsMap[v.proyecto ?? ""] ??
-                              v.proyecto ??
-                              "Proyecto sin nombre"}
-                          </Link>
-                        </h3>
-                        <div className="mt-2 text-sm text-muted-foreground">
-                          <div>
-                            <strong>Cliente:</strong>{" "}
-                            <Link href={`/clientes/${v.cliente}`}>
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-5 gap-4 items-center">
+                        <div className="min-w-0">
+                          <h3 className="font-semibold truncate">
+                            <Link href={`/clientes/proyecto/${v.proyecto}`} className="hover:underline">
+                              {projectsMap[v.proyecto ?? ""] ??
+                                v.proyecto ??
+                                "Proyecto sin nombre"}
+                            </Link>
+                          </h3>
+                          <div className="text-sm text-muted-foreground truncate">
+                            <Link href={`/clientes/${v.cliente}`} className="hover:underline">
                               {clientsMap[v.cliente ?? ""] ?? v.cliente ?? "—"}
                             </Link>
                           </div>
-                          <div className="mt-1">
-                            <strong>Tipo:</strong> {v.tipo_de_venta ?? "—"}
+                        </div>
+
+                        <div className="text-sm">
+                          <div className="text-xs uppercase font-medium text-muted-foreground mb-1">
+                            Tipo
                           </div>
-                          <div className="mt-1">
-                            <strong>Fecha:</strong>{" "}
-                            {v.fecha ? new Date(v.fecha).toLocaleString() : "—"}
+                          <Badge variant="secondary">{v.tipo_de_venta ?? "—"}</Badge>
+                        </div>
+
+                        <div className="text-sm">
+                          <div className="text-xs uppercase font-medium text-muted-foreground mb-1">
+                            Pago inicial
+                          </div>
+                          <div className="font-medium">{fmt(v.pago_inicial)}</div>
+                        </div>
+
+                        <div className="text-sm">
+                          <div className="text-xs uppercase font-medium text-muted-foreground mb-1">
+                            Total / Mensualidad
+                          </div>
+                          <div className="font-medium">
+                            {fmt(v.total_a_pagar)} / {fmt(v.mensualidad)}
                           </div>
                         </div>
-                        <div className="mt-3 text-sm text-muted-foreground">
-                          <div>
-                            <strong>Pago inicial:</strong> {fmt(v.pago_inicial)}
+
+                        <div className="text-sm">
+                          <div className="text-xs uppercase font-medium text-muted-foreground mb-1">
+                            Cant. pagos
                           </div>
-                          <div>
-                            <strong>Total a pagar:</strong>{" "}
-                            {fmt(v.total_a_pagar)}
-                          </div>
-                          <div>
-                            <strong>Mensualidad:</strong> {fmt(v.mensualidad)}
-                          </div>
-                          <div>
-                            <strong>Cant. pagos:</strong>{" "}
-                            {v.cantidad_de_pagos ?? "—"}
-                          </div>
+                          <div>{v.cantidad_de_pagos ?? "—"}</div>
                         </div>
                       </div>
-
-                      {/* Edición y eliminación deshabilitadas en las cards de venta */}
                     </div>
                   </CardContent>
                 </Card>

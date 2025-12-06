@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { getInitials, formatDate } from "@/lib/utils";
+import { Search } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +33,7 @@ type Cliente = {
 export default function Clients() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Cliente | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
@@ -109,93 +111,104 @@ export default function Clients() {
         </Button>
       </div>
 
+      {/* Barra de búsqueda */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por nombre, teléfono o RTN..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
       <div>
         {isLoading ? (
           <p>Cargando...</p>
         ) : (clientes && clientes.length > 0) ||
           (localMock && localMock.length > 0) ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {(localMock ?? clientes).map((c) => (
+          <div className="space-y-3">
+            {(localMock ?? clientes)
+              .filter((c) => {
+                if (!searchQuery) return true;
+                const search = searchQuery.toLowerCase();
+                const nombre = (c.nombre || "").toLowerCase();
+                const telefono = (c.telefono || "").toLowerCase();
+                const rtn = (c.rtn || "").toLowerCase();
+                return nombre.includes(search) || telefono.includes(search) || rtn.includes(search);
+              })
+              .map((c) => (
               <Card
                 key={c.id}
-                className="hover-elevate shadow-sm cursor-pointer"
+                className="hover-elevate shadow-sm cursor-pointer transition-all"
                 onClick={() => setLocation(`/clientes/${c.id}`)}
               >
                 <CardContent className="p-4">
-                  <div className="flex items-start gap-4">
-                    <Avatar className="h-14 w-14 flex-shrink-0">
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-12 w-12 flex-shrink-0">
                       <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
                         {getInitials(c.nombre || "?")}
                       </AvatarFallback>
                     </Avatar>
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className="font-semibold text-base truncate">
-                            {c.nombre}
-                          </div>
-                          <div className="text-sm text-muted-foreground truncate mt-1">
-                            {c.oficio ?? "-"}
-                          </div>
+                    <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-4 gap-4 items-center">
+                      <div className="min-w-0">
+                        <div className="font-semibold text-base truncate">
+                          {c.nombre}
                         </div>
-
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setPendingEditCliente(c);
-                              setClaveValue("");
-                              setClaveOpen(true);
-                            }}
-                          >
-                            Editar
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setPendingDeleteClienteId(c.id);
-                              setClaveValue("");
-                              setClaveOpen(true);
-                            }}
-                          >
-                            Eliminar
-                          </Button>
+                        <div className="text-sm text-muted-foreground truncate">
+                          {c.oficio ?? "-"}
                         </div>
                       </div>
 
-                      <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-muted-foreground">
-                        <div>
-                          <div className="text-xs uppercase font-medium text-muted-foreground">
-                            Teléfono
-                          </div>
-                          <div className="truncate">
-                            <a
-                              className="text-foreground"
-                              href={`tel:${c.telefono ?? ""}`}
-                            >
-                              {c.telefono ?? "-"}
-                            </a>
-                          </div>
+                      <div className="text-sm">
+                        <div className="text-xs uppercase font-medium text-muted-foreground mb-1">
+                          Teléfono
                         </div>
-                        <div>
-                          <div className="text-xs uppercase font-medium text-muted-foreground">
-                            RTN
-                          </div>
-                          <div className="truncate">{c.rtn ?? "-"}</div>
-                        </div>
+                        <a
+                          className="text-foreground hover:underline"
+                          href={`tel:${c.telefono ?? ""}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {c.telefono ?? "-"}
+                        </a>
                       </div>
 
-                      <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                        <div>
-                          {c.created_at
-                            ? `Creado: ${formatDate(c.created_at)}`
-                            : null}
+                      <div className="text-sm">
+                        <div className="text-xs uppercase font-medium text-muted-foreground mb-1">
+                          RTN
                         </div>
+                        <div className="truncate">{c.rtn ?? "-"}</div>
+                      </div>
+
+                      <div className="flex items-center gap-2 justify-end">
+                        <div className="text-xs text-muted-foreground hidden sm:block">
+                          {c.created_at ? formatDate(c.created_at) : null}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPendingEditCliente(c);
+                            setClaveValue("");
+                            setClaveOpen(true);
+                          }}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPendingDeleteClienteId(c.id);
+                            setClaveValue("");
+                            setClaveOpen(true);
+                          }}
+                        >
+                          Eliminar
+                        </Button>
                       </div>
                     </div>
                   </div>

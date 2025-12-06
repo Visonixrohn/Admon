@@ -231,12 +231,15 @@ export default function Dashboard() {
     queryKey: ["dashboard", "stats"],
     queryFn: async () => {
       try {
-        const [rPagos, rClientes, rSubs] = await Promise.all([
+        const [rPagos, rClientes, rSubs, rContratos] = await Promise.all([
           supabase.from("pagos").select("monto"),
-          supabase.from("clientes").select("id"),
+          supabase.from("clientes").select("*"),
           supabase
             .from("suscripciones")
-            .select("id,mensualidad,is_active,proxima_fecha_de_pago"),
+            .select("*"),
+          supabase
+            .from("contratos")
+            .select("*"),
         ]);
 
         const pagosData = Array.isArray(rPagos.data) ? rPagos.data : [];
@@ -244,15 +247,37 @@ export default function Dashboard() {
           ? rClientes.data
           : [];
         const subsData = Array.isArray(rSubs.data) ? rSubs.data : [];
+        const contratosData = Array.isArray(rContratos.data) ? rContratos.data : [];
 
-        const totalRevenue = pagosData.reduce(
+        // Sumar todos los pagos realizados
+        const totalPagos = pagosData.reduce(
           (s: number, p: any) => s + Number(p.monto ?? 0),
           0
         );
+        
+        // Sumar pagos iniciales de contratos
+        const totalPagosInicialesContratos = contratosData.reduce(
+          (s: number, c: any) => s + Number(c.pago_inicial ?? 0),
+          0
+        );
+        
+        // Total de ingresos = pagos + pagos iniciales de contratos
+        const totalRevenue = totalPagos + totalPagosInicialesContratos;
+        
         const totalClients = clientesData.length;
-        const activeSubscriptions = subsData.filter((s: any) =>
-          s.is_active === undefined ? true : s.is_active
-        ).length;
+        const activeSubs = subsData.filter((s: any) =>
+          s.is_active === undefined ? true : Boolean(s.is_active)
+        );
+        
+        const activeSubscriptions = activeSubs.length;
+
+        const monthlyRecurringRevenue = activeSubs.reduce(
+          (sum: number, s: any) => {
+            const mensualidad = parseFloat(s.mensualidad || 0);
+            return sum + (isNaN(mensualidad) ? 0 : mensualidad);
+          },
+          0
+        );
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -264,11 +289,6 @@ export default function Dashboard() {
         }).length;
 
         const overduePayments = pendingPayments;
-
-        const monthlyRecurringRevenue = subsData.reduce(
-          (sum: number, s: any) => sum + Number(s.mensualidad ?? 0),
-          0
-        );
 
         return {
           totalRevenue,
@@ -473,16 +493,31 @@ export default function Dashboard() {
   const { data: monthlyRevenue } = useQuery<any[]>({
     queryKey: ["dashboard", "revenue"],
     queryFn: async () => {
-      // fetch pagos for last 6 months
+      // fetch pagos, contratos y suscripciones for last 6 months
       const now = new Date();
       const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-      const { data, error } = await supabase
-        .from("pagos")
-        .select("id,fecha_de_creacion,monto,tipo")
-        .gte("fecha_de_creacion", sixMonthsAgo.toISOString())
-        .order("fecha_de_creacion", { ascending: true });
-      if (error) throw error;
-      const rows = Array.isArray(data) ? data : [];
+      
+      const [pagosRes, contratosRes, suscripcionesRes] = await Promise.all([
+        supabase
+          .from("pagos")
+          .select("id,fecha_de_creacion,monto,tipo")
+          .gte("fecha_de_creacion", sixMonthsAgo.toISOString())
+          .order("fecha_de_creacion", { ascending: true }),
+        supabase
+          .from("contratos")
+          .select("*")
+          .gte("fecha_de_creacion", sixMonthsAgo.toISOString()),
+        supabase
+          .from("suscripciones")
+          .select("*")
+          .gte("fecha_de_creacion", sixMonthsAgo.toISOString()),
+      ]);
+
+      if (pagosRes.error) throw pagosRes.error;
+      const pagos = Array.isArray(pagosRes.data) ? pagosRes.data : [];
+      const contratos = Array.isArray(contratosRes.data) ? contratosRes.data : [];
+      const suscripciones = Array.isArray(suscripcionesRes.data) ? suscripcionesRes.data : [];
+
       // build months array
       const months: Record<
         string,
@@ -505,7 +540,9 @@ export default function Dashboard() {
           revenue: 0,
         };
       }
-      rows.forEach((r: any) => {
+
+      // Agregar pagos regulares
+      pagos.forEach((r: any) => {
         const d = new Date(r.fecha_de_creacion);
         const key = `${d.getFullYear()}-${(d.getMonth() + 1)
           .toString()
@@ -517,6 +554,20 @@ export default function Dashboard() {
           months[key].subscriptions += monto;
         else months[key].oneTime += monto;
       });
+
+      // Agregar pagos iniciales de contratos
+      contratos.forEach((c: any) => {
+        if (!c.pago_inicial) return;
+        const d = new Date(c.fecha_de_creacion);
+        const key = `${d.getFullYear()}-${(d.getMonth() + 1)
+          .toString()
+          .padStart(2, "0")}`;
+        if (!months[key]) return;
+        const monto = Number(c.pago_inicial ?? 0);
+        months[key].revenue += monto;
+        months[key].oneTime += monto;
+      });
+
       return Object.values(months);
     },
   });

@@ -12,6 +12,21 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -33,6 +48,8 @@ import { queryClient } from "@/lib/queryClient";
 
 export default function EstadoCuentas() {
   const [selectedClient, setSelectedClient] = useState<string>("");
+  const [searchRtn, setSearchRtn] = useState<string>("");
+  const [openCombobox, setOpenCombobox] = useState(false);
   const [selectedTipo, setSelectedTipo] = useState<"all" | "suscripcion" | "contrato">("all");
   const [selectedProyecto, setSelectedProyecto] = useState<string>("");
   const [fechaDesde, setFechaDesde] = useState<string>("");
@@ -121,18 +138,65 @@ export default function EstadoCuentas() {
           <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
             <div className="md:col-span-2">
               <label className="text-xs font-medium text-muted-foreground">RTN / Cliente</label>
-              <Select value={selectedClient} onValueChange={(v) => setSelectedClient(v)}>
-                <SelectTrigger>
-                  <SelectValue>{clients.find((c: any) => c.id === selectedClient)?.rtn ?? "Seleccione cliente"}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map((c: any) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.rtn ? `${c.rtn} — ${c.nombre}` : c.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={openCombobox}
+                    className="w-full justify-between font-normal"
+                  >
+                    {selectedClient
+                      ? (() => {
+                          const client = clients.find((c: any) => c.id === selectedClient);
+                          return client?.rtn ? `${client.rtn} — ${client.nombre}` : client?.nombre;
+                        })()
+                      : "Buscar por RTN o nombre..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0" align="start">
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Escribir RTN o nombre del cliente..."
+                      value={searchRtn}
+                      onValueChange={setSearchRtn}
+                    />
+                    <CommandList>
+                      <CommandEmpty>No se encontraron clientes.</CommandEmpty>
+                      <CommandGroup>
+                        {clients
+                          .filter((c: any) => {
+                            if (!searchRtn) return true;
+                            const search = searchRtn.toLowerCase();
+                            const rtn = (c.rtn || "").toLowerCase();
+                            const nombre = (c.nombre || "").toLowerCase();
+                            return rtn.includes(search) || nombre.includes(search);
+                          })
+                          .map((client: any) => (
+                            <CommandItem
+                              key={client.id}
+                              value={client.rtn ? `${client.rtn} — ${client.nombre}` : client.nombre}
+                              onSelect={() => {
+                                setSelectedClient(client.id);
+                                setSearchRtn("");
+                                setOpenCombobox(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedClient === client.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {client.rtn ? `${client.rtn} — ${client.nombre}` : client.nombre}
+                            </CommandItem>
+                          ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div>
@@ -213,6 +277,7 @@ export default function EstadoCuentas() {
               </Button>
               <Button variant="ghost" onClick={() => {
                 setSelectedClient("");
+                setSearchRtn("");
                 setSelectedTipo("all");
                 setSelectedProyecto("");
                 setFechaDesde("");

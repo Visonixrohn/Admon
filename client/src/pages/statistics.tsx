@@ -136,31 +136,50 @@ export default function Statistics() {
     queryKey: ["statistics", "stats"],
     queryFn: async () => {
       try {
-        const [rPagos, rClientes, rSubs] = await Promise.all([
+        const [rPagos, rClientes, rSubs, rContratos] = await Promise.all([
           supabase.from("pagos").select("monto"),
           supabase
             .from("clientes")
-            .select("id,nombre,total_amount,number_of_payments"),
+            .select("*"),
           supabase
             .from("suscripciones")
-            .select("id,mensualidad,is_active,proxima_fecha_de_pago"),
+            .select("*"),
+          supabase
+            .from("contratos")
+            .select("*"),
         ]);
         const pagosData = Array.isArray(rPagos.data) ? rPagos.data : [];
         const clientesData = Array.isArray(rClientes.data)
           ? rClientes.data
           : [];
         const subsData = Array.isArray(rSubs.data) ? rSubs.data : [];
+        const contratosData = Array.isArray(rContratos.data) ? rContratos.data : [];
 
-        const totalRevenue = pagosData.reduce(
+        // Sumar todos los pagos realizados
+        const totalPagos = pagosData.reduce(
           (s: number, p: any) => s + Number(p.monto ?? 0),
           0
         );
+        
+        // Sumar pagos iniciales de contratos
+        const totalPagosInicialesContratos = contratosData.reduce(
+          (s: number, c: any) => s + Number(c.pago_inicial ?? 0),
+          0
+        );
+        
+        // Total de ingresos = pagos + pagos iniciales de contratos
+        const totalRevenue = totalPagos + totalPagosInicialesContratos;
+        
         const totalClients = clientesData.length;
-        const activeSubscriptions = subsData.filter((s: any) =>
-          s.is_active === undefined ? true : s.is_active
-        ).length;
-        const monthlyRecurringRevenue = subsData.reduce(
-          (sum: number, s: any) => sum + Number(s.mensualidad ?? 0),
+        const activeSubs = subsData.filter((s: any) =>
+          s.is_active === undefined ? true : Boolean(s.is_active)
+        );
+        const activeSubscriptions = activeSubs.length;
+        const monthlyRecurringRevenue = activeSubs.reduce(
+          (sum: number, s: any) => {
+            const mensualidad = parseFloat(s.mensualidad || 0);
+            return sum + (isNaN(mensualidad) ? 0 : mensualidad);
+          },
           0
         );
 
@@ -204,13 +223,28 @@ export default function Statistics() {
     queryFn: async () => {
       const now = new Date();
       const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-      const { data, error } = await supabase
-        .from("pagos")
-        .select("id,fecha_de_creacion,monto,tipo")
-        .gte("fecha_de_creacion", sixMonthsAgo.toISOString())
-        .order("fecha_de_creacion", { ascending: true });
-      if (error) throw error;
-      const rows = Array.isArray(data) ? data : [];
+      
+      const [pagosRes, contratosRes, suscripcionesRes] = await Promise.all([
+        supabase
+          .from("pagos")
+          .select("id,fecha_de_creacion,monto,tipo")
+          .gte("fecha_de_creacion", sixMonthsAgo.toISOString())
+          .order("fecha_de_creacion", { ascending: true }),
+        supabase
+          .from("contratos")
+          .select("*")
+          .gte("fecha_de_creacion", sixMonthsAgo.toISOString()),
+        supabase
+          .from("suscripciones")
+          .select("*")
+          .gte("fecha_de_creacion", sixMonthsAgo.toISOString()),
+      ]);
+
+      if (pagosRes.error) throw pagosRes.error;
+      const pagos = Array.isArray(pagosRes.data) ? pagosRes.data : [];
+      const contratos = Array.isArray(contratosRes.data) ? contratosRes.data : [];
+      const suscripciones = Array.isArray(suscripcionesRes.data) ? suscripcionesRes.data : [];
+
       const months: Record<
         string,
         {
@@ -233,7 +267,9 @@ export default function Statistics() {
           revenue: 0,
         };
       }
-      rows.forEach((r: any) => {
+      
+      // Agregar pagos regulares
+      pagos.forEach((r: any) => {
         const d = new Date(r.fecha_de_creacion);
         const key = `${d.getFullYear()}-${(d.getMonth() + 1)
           .toString()
@@ -245,6 +281,20 @@ export default function Statistics() {
           months[key].subscriptions += monto;
         else months[key].oneTime += monto;
       });
+
+      // Agregar pagos iniciales de contratos
+      contratos.forEach((c: any) => {
+        if (!c.pago_inicial) return;
+        const d = new Date(c.fecha_de_creacion);
+        const key = `${d.getFullYear()}-${(d.getMonth() + 1)
+          .toString()
+          .padStart(2, "0")}`;
+        if (!months[key]) return;
+        const monto = Number(c.pago_inicial ?? 0);
+        months[key].revenue += monto;
+        months[key].oneTime += monto;
+      });
+
       return Object.values(months);
     },
   });
@@ -257,6 +307,20 @@ export default function Statistics() {
         .select("id,nombre,rtn,telefono,total_amount,number_of_payments");
       if (error) throw error;
       return Array.isArray(data) ? data : [];
+    },
+  });
+
+  // Obtener clientes con suscripciones activas
+  const { data: clientsWithSubscriptions } = useQuery<string[]>({
+    queryKey: ["statistics", "clients", "subscriptions"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("suscripciones")
+        .select("cliente")
+        .eq("is_active", true);
+      if (error) throw error;
+      const clientIds = Array.isArray(data) ? data.map((s: any) => s.cliente) : [];
+      return [...new Set(clientIds)]; // Eliminar duplicados
     },
   });
 
@@ -277,12 +341,51 @@ export default function Statistics() {
     return acc;
   }, {} as Record<string, number>);
 
-  const pieData = Object.entries(paymentTypeDistribution).map(
-    ([name, value]) => ({
-      name: getPaymentTypeLabel(name),
-      value,
-    })
-  );
+  // Calcular distribución de clientes por tipo (contratos vs suscripciones)
+  const { data: clientsByType } = useQuery<{
+    contratos: number;
+    suscripciones: number;
+    ambos: number;
+  }>({
+    queryKey: ["statistics", "clients", "by-type"],
+    queryFn: async () => {
+      const [contratosRes, suscripcionesRes] = await Promise.all([
+        supabase.from("contratos").select("cliente").eq("estado", "activo"),
+        supabase.from("suscripciones").select("cliente").eq("is_active", true),
+      ]);
+
+      const clientesConContratos = new Set(
+        (contratosRes.data || []).map((c: any) => c.cliente)
+      );
+      const clientesConSuscripciones = new Set(
+        (suscripcionesRes.data || []).map((s: any) => s.cliente)
+      );
+
+      const soloContratos = [...clientesConContratos].filter(
+        (id) => !clientesConSuscripciones.has(id)
+      ).length;
+      const soloSuscripciones = [...clientesConSuscripciones].filter(
+        (id) => !clientesConContratos.has(id)
+      ).length;
+      const ambos = [...clientesConContratos].filter((id) =>
+        clientesConSuscripciones.has(id)
+      ).length;
+
+      return {
+        contratos: soloContratos,
+        suscripciones: soloSuscripciones,
+        ambos,
+      };
+    },
+  });
+
+  const pieData = clientsByType
+    ? [
+        { name: "Solo Contratos", value: clientsByType.contratos },
+        { name: "Solo Suscripciones", value: clientsByType.suscripciones },
+        { name: "Ambos", value: clientsByType.ambos },
+      ].filter((item) => item.value > 0)
+    : [];
 
   const revenueByType = (Array.isArray(pagosAll) ? pagosAll : []).reduce(
     (acc: Record<string, number>, p: any) => {
@@ -650,14 +753,14 @@ export default function Statistics() {
                   Tasa de Suscripcion
                 </p>
                 <p className="text-2xl font-bold">
-                  {clients && clients.length > 0
+                  {clients && clients.length > 0 && clientsWithSubscriptions
                     ? `${Math.round(
-                        (clients.filter((c) => c.paymentType === "suscripcion")
-                          .length /
-                          clients.length) *
-                          100
+                        (clientsWithSubscriptions.length / clients.length) * 100
                       )}%`
                     : "0%"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {clientsWithSubscriptions?.length || 0} de {clients?.length || 0} clientes
                 </p>
               </div>
             </div>
