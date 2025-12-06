@@ -194,39 +194,11 @@ export default function Configuracion() {
                   <Edit className="w-4 h-4" />
                   Editar datos
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    navigator.clipboard?.writeText(JSON.stringify(cfg ?? {}));
-                  }}
-                >
-                  Copiar JSON
-                </Button>
               </div>
             </aside>
           </CardContent>
 
-          <CardFooter>
-            <div className="w-full flex justify-end">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  if (cfg) {
-                    setNombre(cfg.nombre ?? "");
-                    setRtn(cfg.rtn ?? "");
-                    setDireccion(cfg.direccion ?? "");
-                    setProyecto(cfg.proyecto ?? "");
-                    setTelefono(cfg.telefono ?? "");
-                    setClave(cfg.clave ?? "");
-                  }
-                }}
-              >
-                Reset
-              </Button>
-            </div>
-          </CardFooter>
+          {/* CardFooter removed: Reset button intentionally removed per request */}
         </Card>
 
         <Dialog open={open} onOpenChange={setOpen}>
