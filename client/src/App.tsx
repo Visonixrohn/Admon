@@ -23,38 +23,11 @@ import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import React, { useEffect, useState } from "react";
 
-function Router({ authed, onLogin }: { authed: boolean; onLogin: () => void }) {
-  const [location, setLocation] = useLocation();
-
-  // If authenticated and currently at /login, redirect to home
-  if (authed && location === "/login") {
-    setLocation("/");
-  }
-
-  const wrap = (C: any) => (props: any) => (authed ? <C {...props} /> : <Login onSuccess={onLogin} />);
-
-  return (
-    <Switch>
-      <Route path="/" component={wrap(Dashboard)} />
-      <Route path="/clientes/proyecto/ventas" component={wrap(ProyectoVentas)} />
-      <Route path="/clientes/proyecto/:id" component={wrap(ProyectoDetalle)} />
-      <Route path="/clientes/proyecto" component={wrap(Proyecto)} />
-      <Route path="/clientes/:id" component={wrap(ClienteDetalle)} />
-      <Route path="/clientes" component={wrap(Clients)} />
-      <Route path="/contratos-activos" component={wrap(ContratosActivos)} />
-      <Route path="/configuracion" component={wrap(Configuracion)} />
-      <Route path="/pagos" component={wrap(Payments)} />
-      <Route path="/pagos/estado-de-cuentas" component={wrap(EstadoCuentas)} />
-      <Route path="/suscripciones" component={wrap(Subscriptions)} />
-      <Route path="/estadisticas" component={wrap(Statistics)} />
-      <Route path="/login" component={() => <Login onSuccess={onLogin} />} />
-      <Route component={wrap(NotFound)} />
-    </Switch>
-  );
-}
+// Router moved inside App to allow auth-based redirects
 
 function App() {
   const [authed, setAuthed] = useState<boolean | null>(null);
+  const [location, setLocation] = useLocation();
 
   useEffect(() => {
     try {
@@ -63,7 +36,31 @@ function App() {
     } catch (e) {
       setAuthed(false);
     }
+    // sync across tabs
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "admon-auth") {
+        try {
+          const v = localStorage.getItem("admon-auth");
+          setAuthed(v === "true");
+        } catch (err) {
+          setAuthed(false);
+        }
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
+  // once we know auth state, redirect appropriately
+  useEffect(() => {
+    if (authed === null) return;
+    if (!authed) {
+      // force URL to /login so user cannot access other routes
+      if (location !== "/login") setLocation("/login");
+    } else {
+      // if already authenticated and on /login, send to root
+      if (location === "/login") setLocation("/");
+    }
+  }, [authed, location, setLocation]);
 
   if (authed === null) return null;
   const sidebarStyle = {
@@ -84,7 +81,24 @@ function App() {
                   <ThemeToggle />
                 </header>
                 <main className="flex-1 overflow-auto">
-                  <Router authed={authed} onLogin={() => setAuthed(true)} />
+                  <Switch>
+                    <Route path="/login">
+                      {() => <Login onSuccess={() => setAuthed(true)} />}
+                    </Route>
+                    <Route path="/" component={Dashboard} />
+                    <Route path="/clientes/proyecto/ventas" component={ProyectoVentas} />
+                    <Route path="/clientes/proyecto/:id" component={ProyectoDetalle} />
+                    <Route path="/clientes/proyecto" component={Proyecto} />
+                    <Route path="/clientes/:id" component={ClienteDetalle} />
+                    <Route path="/clientes" component={Clients} />
+                    <Route path="/contratos-activos" component={ContratosActivos} />
+                    <Route path="/configuracion" component={Configuracion} />
+                    <Route path="/pagos" component={Payments} />
+                    <Route path="/pagos/estado-de-cuentas" component={EstadoCuentas} />
+                    <Route path="/suscripciones" component={Subscriptions} />
+                    <Route path="/estadisticas" component={Statistics} />
+                    <Route component={NotFound} />
+                  </Switch>
                 </main>
               </div>
             </div>
