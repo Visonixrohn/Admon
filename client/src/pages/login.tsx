@@ -47,16 +47,21 @@ export default function Login({ onSuccess }: Props) {
   }
 
   return (
-    <div className="h-screen flex items-center justify-center bg-muted p-4">
+    <div className="h-screen flex items-center justify-center bg-slate-900 p-4">
       <div style={{ width: 420 }}>
-        <Card>
+        <Card className="bg-slate-800 text-white border-transparent">
           <CardContent>
-            <h2 className="text-lg font-semibold mb-2">Ingreso</h2>
-            <p className="text-sm text-muted-foreground mb-4">Introduce la clave de acceso para entrar en la aplicación.</p>
+            <div className="flex flex-col items-center">
+              <img
+                src="/vsr.png"
+                alt="Visonixro"
+                className="h-16 w-16 object-contain mb-3"
+              />
+            </div>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Clave</label>
+                <label className="block text-sm font-medium mb-1 text-center">Clave</label>
                 <Input
                   type="password"
                   value={clave}
@@ -64,8 +69,8 @@ export default function Login({ onSuccess }: Props) {
                 />
               </div>
 
-              <div className="flex justify-end">
-                <Button onClick={onSubmit} disabled={loading}>
+              <div className="flex justify-center">
+                <Button onClick={onSubmit} disabled={loading} className="w-40">
                   {loading ? "Comprobando..." : "Entrar"}
                 </Button>
               </div>
