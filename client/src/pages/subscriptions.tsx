@@ -335,6 +335,8 @@ export default function Subscriptions() {
   const [editMode, setEditMode] = useState(false);
   const [mensualidadEdit, setMensualidadEdit] = useState<string>("");
   const [proximaEdit, setProximaEdit] = useState<string>("");
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
 
   const openDetail = (s: SubscriptionWithClient) => {
     setSelected(s);
@@ -381,6 +383,25 @@ export default function Subscriptions() {
 
   const saveEdits = async () => {
     if (!selected) return;
+    
+    // Verificar si se está cambiando la próxima fecha de pago
+    const originalProxima = selected.nextPaymentDate
+      ? new Date(selected.nextPaymentDate).toISOString().slice(0, 10)
+      : "";
+    const cambioFecha = proximaEdit !== originalProxima;
+    
+    // Si se cambia la fecha, pedir confirmación de clave
+    if (cambioFecha) {
+      setShowPasswordConfirm(true);
+      return;
+    }
+    
+    // Si no hay cambio de fecha, guardar directamente
+    await performSave();
+  };
+  
+  const performSave = async () => {
+    if (!selected) return;
     try {
       const mensual = mensualidadEdit ? Number(mensualidadEdit) : 0;
       const proxIso = proximaEdit
@@ -404,6 +425,8 @@ export default function Subscriptions() {
       });
       toast({ title: "Suscripción actualizada" });
       setEditMode(false);
+      setShowPasswordConfirm(false);
+      setPasswordInput("");
     } catch (err: any) {
       // eslint-disable-next-line no-console
       console.error("Error guardando cambios:", err);
@@ -412,6 +435,23 @@ export default function Subscriptions() {
         description: err?.message ?? String(err),
       });
     }
+  };
+  
+  const confirmPasswordAndSave = async () => {
+    // Validar la contraseña (ajusta según tu lógica)
+    const ADMIN_PASSWORD = "admin123"; // Cambiar por tu contraseña real o validar contra DB
+    
+    if (passwordInput !== ADMIN_PASSWORD) {
+      toast({
+        title: "Contraseña incorrecta",
+        description: "La contraseña ingresada no es válida",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Si la contraseña es correcta, guardar
+    await performSave();
   };
 
   return (
@@ -750,6 +790,51 @@ export default function Subscriptions() {
                     Cerrar
                   </Button>
                 </div>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          
+          {/* Diálogo de confirmación de contraseña */}
+          <Dialog open={showPasswordConfirm} onOpenChange={(v) => {
+            setShowPasswordConfirm(v);
+            if (!v) setPasswordInput("");
+          }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Confirmar cambio de fecha de pago</DialogTitle>
+              </DialogHeader>
+              <div className="mt-4 space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Para modificar la próxima fecha de pago, ingresa la contraseña de administrador.
+                </p>
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Contraseña
+                  </label>
+                  <Input
+                    type="password"
+                    placeholder="Ingresa la contraseña"
+                    value={passwordInput}
+                    onChange={(e) => setPasswordInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") confirmPasswordAndSave();
+                    }}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowPasswordConfirm(false);
+                    setPasswordInput("");
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button onClick={confirmPasswordAndSave}>
+                  Confirmar
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
