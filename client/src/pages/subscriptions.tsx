@@ -90,7 +90,6 @@ function SubscriptionCard({
   const isPaymentDue = daysUntilPayment <= 0 && subscription.isActive;
   const isPaymentSoon =
     daysUntilPayment <= 5 && daysUntilPayment > 0 && subscription.isActive;
-
   return (
     <Card
       className={`hover-elevate transition-all ${
@@ -98,127 +97,127 @@ function SubscriptionCard({
       }`}
       data-testid={`card-subscription-${subscription.id}`}
     >
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <div className="flex items-center gap-3">
+      <CardContent className="p-4 md:p-6">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4">
+          <div className="flex items-center gap-3 w-full md:w-auto">
             <Avatar className="h-12 w-12 flex-shrink-0">
               <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                 {getInitials(subscription.clientName)}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <p className="font-semibold truncate">
+              <p className="font-semibold truncate text-sm md:text-base">
                 {subscription.clientName}
               </p>
-              <p className="text-sm text-muted-foreground truncate">
+              <p className="text-xs md:text-sm text-muted-foreground truncate">
                 {subscription.projectName}
               </p>
             </div>
           </div>
           {onToggleStatus ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={() =>
-                    onToggleStatus(subscription.id, !subscription.isActive)
-                  }
-                  data-testid="menu-toggle-status"
-                >
-                  {subscription.isActive ? (
-                    <>
-                      <Pause className="h-4 w-4 mr-2" />
-                      Pausar suscripcion
-                    </>
-                  ) : (
-                    <>
-                      <Play className="h-4 w-4 mr-2" />
-                      Reactivar suscripcion
-                    </>
-                  )}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="ml-auto md:ml-0">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() =>
+                      onToggleStatus(subscription.id, !subscription.isActive)
+                    }
+                    data-testid="menu-toggle-status"
+                  >
+                    {subscription.isActive ? (
+                      <>
+                        <Pause className="h-4 w-4 mr-2" />
+                        Pausar suscripcion
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-4 w-4 mr-2" />
+                        Reactivar suscripcion
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           ) : null}
         </div>
 
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-sm text-muted-foreground">
-              Monto mensual:
-            </span>
-            <span className="text-xl font-bold text-primary">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6">
+          <div className="flex flex-col">
+            <span className="text-sm text-muted-foreground">Monto mensual</span>
+            <span className="text-lg md:text-xl font-bold text-primary">
               {formatCurrency(Number(subscription.monthlyAmount))}
             </span>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-4 text-sm">
-              <span className="text-muted-foreground">Inicio:</span>
-              <span>{formatDate(subscription.startDate)}</span>
-            </div>
-            <div className="flex items-center justify-between gap-4 text-sm">
-              <span className="text-muted-foreground">Ultimo pago:</span>
-              <span>
-                {subscription.lastPaymentDate
-                  ? formatDate(subscription.lastPaymentDate)
-                  : "Pendiente"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-4 text-sm">
-              <span className="text-muted-foreground">Proximo pago:</span>
-              <span
-                className={`font-medium ${
-                  isPaymentDue
-                    ? "text-red-500"
-                    : isPaymentSoon
-                    ? "text-yellow-500"
-                    : ""
-                }`}
-              >
-                {subscription.nextPaymentDate
-                  ? formatDate(subscription.nextPaymentDate)
-                  : "-"}
-              </span>
-            </div>
+          <div className="flex flex-col">
+            <span className="text-sm text-muted-foreground">Inicio</span>
+            <span className="text-sm">{formatDate(subscription.startDate)}</span>
+          </div>
+
+          <div className="flex flex-col">
+            <span className="text-sm text-muted-foreground">Próximo pago</span>
+            <span
+              className={`font-medium ${
+                isPaymentDue
+                  ? "text-red-500"
+                  : isPaymentSoon
+                  ? "text-yellow-500"
+                  : ""
+              } text-sm md:text-base`}
+            >
+              {subscription.nextPaymentDate
+                ? formatDate(subscription.nextPaymentDate)
+                : "-"}
+            </span>
+            <span className="text-xs text-muted-foreground mt-1">
+              Último pago: {subscription.lastPaymentDate ? formatDate(subscription.lastPaymentDate) : "Pendiente"}
+            </span>
           </div>
         </div>
 
-        <div className="mt-4 pt-4 border-t border-border flex items-center justify-between gap-4">
-          <Badge
-            variant="secondary"
-            className={
-              subscription.isActive
-                ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                : "bg-muted text-muted-foreground"
-            }
-          >
-            {subscription.isActive ? (
-              <>
-                <CheckCircle2 className="h-3 w-3 mr-1" />
-                Activa
-              </>
-            ) : (
-              <>
-                <XCircle className="h-3 w-3 mr-1" />
-                Pausada
-              </>
+        <div className="mt-4 pt-4 border-t border-border flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Badge
+              variant="secondary"
+              className={
+                subscription.isActive
+                  ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                  : "bg-muted text-muted-foreground"
+              }
+            >
+              {subscription.isActive ? (
+                <>
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  Activa
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-3 w-3 mr-1" />
+                  Pausada
+                </>
+              )}
+            </Badge>
+            {isPaymentDue && subscription.isActive && (
+              <span className="text-xs text-red-500 font-medium">Pago vencido</span>
             )}
-          </Badge>
-          {isPaymentDue && subscription.isActive && (
-            <span className="text-xs text-red-500 font-medium">
-              Pago vencido
-            </span>
-          )}
-          {isPaymentSoon && (
-            <span className="text-xs text-yellow-500">
-              Vence en {daysUntilPayment} dias
-            </span>
-          )}
+            {isPaymentSoon && (
+              <span className="text-xs text-yellow-500">Vence en {daysUntilPayment} dias</span>
+            )}
+          </div>
+
+          <div className="ml-auto w-full md:w-auto flex gap-2">
+            {onToggleStatus && (
+              <Button size="sm" variant="outline" className="w-full md:w-auto" onClick={() => onToggleStatus(subscription.id, !subscription.isActive)}>
+                {subscription.isActive ? "Pausar" : "Reactivar"}
+              </Button>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -789,56 +788,63 @@ export default function Subscriptions() {
               else setDetailOpen(v);
             }}
           >
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Detalle de Suscripción</DialogTitle>
+            <DialogContent className="max-w-[95vw] md:max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader className="space-y-2">
+                <DialogTitle className="text-lg md:text-xl">Detalle de Suscripción</DialogTitle>
               </DialogHeader>
 
-              <div className="mt-2">
+              <div className="mt-2 md:mt-4">
                 {selected ? (
                   !editMode ? (
-                    <SubscriptionCard subscription={selected} />
-                  ) : (
                     <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Mensualidad
-                        </label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={mensualidadEdit}
-                          onChange={(e) => setMensualidadEdit(e.target.value)}
-                        />
+                      <SubscriptionCard subscription={selected} />
+                    </div>
+                  ) : (
+                    <div className="space-y-4 md:space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="block text-sm font-medium">
+                            Mensualidad
+                          </label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={mensualidadEdit}
+                            onChange={(e) => setMensualidadEdit(e.target.value)}
+                            className="w-full"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="block text-sm font-medium">
+                            Próxima fecha de pago
+                          </label>
+                          <Input
+                            type="date"
+                            value={proximaEdit}
+                            onChange={(e) => setProximaEdit(e.target.value)}
+                            className="w-full"
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Próxima fecha de pago
-                        </label>
-                        <Input
-                          type="date"
-                          value={proximaEdit}
-                          onChange={(e) => setProximaEdit(e.target.value)}
-                        />
-                      </div>
-                      <div className="flex gap-2 justify-end">
+                      <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end pt-2">
                         <Button
                           variant="outline"
                           onClick={() => setEditMode(false)}
+                          className="w-full sm:w-auto"
                         >
                           Cancelar
                         </Button>
-                        <Button onClick={saveEdits}>Guardar</Button>
+                        <Button onClick={saveEdits} className="w-full sm:w-auto">Guardar</Button>
                       </div>
                     </div>
                   )
                 ) : (
-                  <p>No hay detalle seleccionado</p>
+                  <p className="text-center text-muted-foreground py-4">No hay detalle seleccionado</p>
                 )}
               </div>
 
-              <DialogFooter>
-                <div className="w-full flex justify-end gap-2">
+              <DialogFooter className="mt-4">
+                <div className="w-full flex flex-col sm:flex-row justify-end gap-2">
                   <Button
                     variant={
                       selected && selected.isActive
@@ -847,6 +853,7 @@ export default function Subscriptions() {
                     }
                     onClick={toggleSubscription}
                     disabled={!selected}
+                    className="w-full sm:w-auto order-2 sm:order-1"
                   >
                     {selected && selected.isActive
                       ? "Pausar suscripción"
@@ -857,11 +864,16 @@ export default function Subscriptions() {
                       variant="ghost"
                       onClick={() => setEditMode(true)}
                       disabled={!selected}
+                      className="w-full sm:w-auto order-1 sm:order-2"
                     >
                       Editar
                     </Button>
                   )}
-                  <Button variant="ghost" onClick={closeDetail}>
+                  <Button 
+                    variant="ghost" 
+                    onClick={closeDetail}
+                    className="w-full sm:w-auto order-3"
+                  >
                     Cerrar
                   </Button>
                 </div>
@@ -874,16 +886,16 @@ export default function Subscriptions() {
             setShowPasswordConfirm(v);
             if (!v) setPasswordInput("");
           }}>
-            <DialogContent>
+            <DialogContent className="max-w-[95vw] md:max-w-md">
               <DialogHeader>
-                <DialogTitle>Confirmar cambio de fecha de pago</DialogTitle>
+                <DialogTitle className="text-base md:text-lg">Confirmar cambio de fecha de pago</DialogTitle>
               </DialogHeader>
               <div className="mt-4 space-y-4">
                 <p className="text-sm text-muted-foreground">
                   Para modificar la próxima fecha de pago, ingresa la contraseña de administrador.
                 </p>
-                <div>
-                  <label className="block text-sm font-medium mb-2">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium">
                     Contraseña
                   </label>
                   <Input
@@ -894,20 +906,25 @@ export default function Subscriptions() {
                     onKeyDown={(e) => {
                       if (e.key === "Enter") confirmPasswordAndSave();
                     }}
+                    className="w-full"
                   />
                 </div>
               </div>
-              <DialogFooter>
+              <DialogFooter className="flex-col sm:flex-row gap-2">
                 <Button
                   variant="outline"
                   onClick={() => {
                     setShowPasswordConfirm(false);
                     setPasswordInput("");
                   }}
+                  className="w-full sm:w-auto order-2 sm:order-1"
                 >
                   Cancelar
                 </Button>
-                <Button onClick={confirmPasswordAndSave}>
+                <Button 
+                  onClick={confirmPasswordAndSave}
+                  className="w-full sm:w-auto order-1 sm:order-2"
+                >
                   Confirmar
                 </Button>
               </DialogFooter>
