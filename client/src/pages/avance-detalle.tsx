@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import type { Avance, AvanceCaracteristica } from "@shared/schema";
 import { formatDate, formatDateTime } from "@/lib/utils";
+import { AvanceReport } from "@/components/avance-report";
 
 interface AvanceWithDetails extends Avance {
   cliente_nombre: string;
@@ -262,12 +263,15 @@ export default function AvanceDetallePage() {
           </h1>
           <p className="text-muted-foreground">{avance.descripcion}</p>
         </div>
-        {caracteristicasPendientes.length > 0 && (
-          <Button size="lg" onClick={handleOpenRegistrarAvance}>
-            <Save className="h-4 w-4 mr-2" />
-            Registrar Avance
-          </Button>
-        )}
+        <div className="flex flex-col sm:flex-row gap-2">
+          <AvanceReport avance={avance} />
+          {caracteristicasPendientes.length > 0 && (
+            <Button size="lg" onClick={handleOpenRegistrarAvance}>
+              <Save className="h-4 w-4 mr-2" />
+              Registrar Avance
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Información general */}
