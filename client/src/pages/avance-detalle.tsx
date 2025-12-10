@@ -31,6 +31,8 @@ import {
 import type { Avance, AvanceCaracteristica } from "@shared/schema";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { AvanceReport } from "@/components/avance-report";
+import { AvanceReportMobile } from "@/components/avance-report-mobile";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface AvanceWithDetails extends Avance {
   cliente_nombre: string;
@@ -44,6 +46,7 @@ export default function AvanceDetallePage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
   const [showRegistrarAvance, setShowRegistrarAvance] = useState(false);
   const [selectedCaracteristicas, setSelectedCaracteristicas] = useState<
@@ -111,9 +114,38 @@ export default function AvanceDetallePage() {
         throw errors[0].error;
       }
 
+      // Esperar un momento para que el trigger de la BD actualice los contadores
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Recalcular y actualizar manualmente los contadores por si el trigger no funcionó
+      const { data: allCaracteristicas } = await supabase
+        .from("avances_caracteristicas")
+        .select("completada")
+        .eq("avance_id", id!);
+
+      if (allCaracteristicas) {
+        const total = allCaracteristicas.length;
+        const completadas = allCaracteristicas.filter(c => c.completada).length;
+        const porcentaje = total > 0 ? (completadas / total) * 100 : 0;
+        const nuevoEstado = porcentaje === 100 ? "completado" : "en_progreso";
+
+        // Actualizar el registro de avance con los valores correctos
+        await supabase
+          .from("avances")
+          .update({
+            total_caracteristicas: total,
+            caracteristicas_completadas: completadas,
+            porcentaje_avance: porcentaje,
+            estado: nuevoEstado,
+            fecha_actualizacion: new Date().toISOString(),
+          })
+          .eq("id", id!);
+      }
+
       return results;
     },
     onSuccess: () => {
+      // Invalidar las queries para forzar una recarga de los datos actualizados
       queryClient.invalidateQueries({ queryKey: ["avance-detalle", id] });
       queryClient.invalidateQueries({ queryKey: ["avances"] });
       toast({
@@ -264,7 +296,11 @@ export default function AvanceDetallePage() {
           <p className="text-muted-foreground">{avance.descripcion}</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
-          <AvanceReport avance={avance} />
+          {isMobile ? (
+            <AvanceReportMobile avance={avance} />
+          ) : (
+            <AvanceReport avance={avance} />
+          )}
           {caracteristicasPendientes.length > 0 && (
             <Button size="lg" onClick={handleOpenRegistrarAvance}>
               <Save className="h-4 w-4 mr-2" />
