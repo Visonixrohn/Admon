@@ -50,7 +50,9 @@ export default function ContratoDialog({
     throw new Error("Se requiere ventaId, contratoId o suscripcionId");
   }
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -189,11 +191,9 @@ export default function ContratoDialog({
     setPdfUrl(null);
   };
 
-
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent 
+      <DialogContent
         className="sm:max-w-[900px] max-h-[90vh] overflow-hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
@@ -222,12 +222,15 @@ export default function ContratoDialog({
                   Visualizando contrato firmado
                 </AlertDescription>
               </Alert>
-              <div className="relative w-full bg-gray-100 rounded-lg overflow-hidden" style={{ height: '65vh' }}>
+              <div
+                className="relative w-full bg-gray-100 rounded-lg overflow-hidden"
+                style={{ height: "65vh" }}
+              >
                 <iframe
                   src={`${pdfUrl}#view=FitH`}
                   className="w-full h-full border-0"
                   title="Contrato PDF"
-                  style={{ backgroundColor: '#f3f4f6' }}
+                  style={{ backgroundColor: "#f3f4f6" }}
                 />
               </div>
               <div className="flex gap-2">

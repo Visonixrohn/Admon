@@ -24,6 +24,7 @@ import { queryClient } from "@/lib/queryClient";
 type Cliente = {
   id: string;
   nombre: string;
+  email?: string | null;
   telefono?: string | null;
   rtn?: string | null;
   oficio?: string | null;
@@ -52,11 +53,12 @@ export default function Clients() {
   const [debugResult, setDebugResult] = useState<any>(null);
 
   const form = useForm<Partial<Cliente>>({
-    defaultValues: { nombre: "", telefono: "", rtn: "", oficio: "" },
+    defaultValues: { nombre: "", email: "", telefono: "", rtn: "", oficio: "" },
   });
 
   const sanitizeValues = (vals: Partial<Cliente> | null) => ({
     nombre: vals?.nombre?.toString().trim() ?? "",
+    email: vals?.email?.toString().trim() ?? "",
     telefono: vals?.telefono?.toString().trim() ?? "",
     rtn: vals?.rtn?.toString().trim() ?? "",
     oficio: vals?.oficio?.toString().trim() ?? "",
@@ -135,86 +137,108 @@ export default function Clients() {
                 const nombre = (c.nombre || "").toLowerCase();
                 const telefono = (c.telefono || "").toLowerCase();
                 const rtn = (c.rtn || "").toLowerCase();
-                return nombre.includes(search) || telefono.includes(search) || rtn.includes(search);
+                return (
+                  nombre.includes(search) ||
+                  telefono.includes(search) ||
+                  rtn.includes(search)
+                );
               })
               .map((c) => (
-              <Card
-                key={c.id}
-                className="hover-elevate shadow-sm cursor-pointer transition-all"
-                onClick={() => setLocation(`/clientes/${c.id}`)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-12 w-12 flex-shrink-0">
-                      <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
-                        {getInitials(c.nombre || "?")}
-                      </AvatarFallback>
-                    </Avatar>
+                <Card
+                  key={c.id}
+                  className="hover-elevate shadow-sm cursor-pointer transition-all"
+                  onClick={() => setLocation(`/clientes/${c.id}`)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-4">
+                      <Avatar className="h-12 w-12 flex-shrink-0">
+                        <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
+                          {getInitials(c.nombre || "?")}
+                        </AvatarFallback>
+                      </Avatar>
 
-                    <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-4 gap-4 items-center">
-                      <div className="min-w-0">
-                        <div className="font-semibold text-base truncate">
-                          {c.nombre}
+                      <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-center">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-base truncate">
+                            {c.nombre}
+                          </div>
+                          <div className="text-sm text-muted-foreground truncate">
+                            {c.oficio ?? "-"}
+                          </div>
                         </div>
-                        <div className="text-sm text-muted-foreground truncate">
-                          {c.oficio ?? "-"}
-                        </div>
-                      </div>
 
-                      <div className="text-sm">
-                        <div className="text-xs uppercase font-medium text-muted-foreground mb-1">
-                          Teléfono
+                        <div className="text-sm">
+                          <div className="text-xs uppercase font-medium text-muted-foreground mb-1">
+                            Email
+                          </div>
+                          {c.email ? (
+                            <a
+                              className="text-foreground hover:underline truncate block"
+                              href={`mailto:${c.email}`}
+                              onClick={(e) => e.stopPropagation()}
+                              title={c.email}
+                            >
+                              {c.email}
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
                         </div>
-                        <a
-                          className="text-foreground hover:underline"
-                          href={`tel:${c.telefono ?? ""}`}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {c.telefono ?? "-"}
-                        </a>
-                      </div>
 
-                      <div className="text-sm">
-                        <div className="text-xs uppercase font-medium text-muted-foreground mb-1">
-                          RTN
+                        <div className="text-sm">
+                          <div className="text-xs uppercase font-medium text-muted-foreground mb-1">
+                            Teléfono
+                          </div>
+                          <a
+                            className="text-foreground hover:underline"
+                            href={`tel:${c.telefono ?? ""}`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {c.telefono ?? "-"}
+                          </a>
                         </div>
-                        <div className="truncate">{c.rtn ?? "-"}</div>
-                      </div>
 
-                      <div className="flex items-center gap-2 justify-end">
-                        <div className="text-xs text-muted-foreground hidden sm:block">
-                          {c.created_at ? formatDate(c.created_at) : null}
+                        <div className="text-sm">
+                          <div className="text-xs uppercase font-medium text-muted-foreground mb-1">
+                            RTN
+                          </div>
+                          <div className="truncate">{c.rtn ?? "-"}</div>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPendingEditCliente(c);
-                            setClaveValue("");
-                            setClaveOpen(true);
-                          }}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPendingDeleteClienteId(c.id);
-                            setClaveValue("");
-                            setClaveOpen(true);
-                          }}
-                        >
-                          Eliminar
-                        </Button>
+
+                        <div className="flex items-center gap-2 justify-end">
+                          <div className="text-xs text-muted-foreground hidden sm:block">
+                            {c.created_at ? formatDate(c.created_at) : null}
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPendingEditCliente(c);
+                              setClaveValue("");
+                              setClaveOpen(true);
+                            }}
+                          >
+                            Editar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPendingDeleteClienteId(c.id);
+                              setClaveValue("");
+                              setClaveOpen(true);
+                            }}
+                          >
+                            Eliminar
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              ))}
           </div>
         ) : (
           <div className="space-y-3">
@@ -300,6 +324,16 @@ export default function Clients() {
                 </FormControl>
               </FormItem>
               <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input
+                    type="email"
+                    placeholder="correo@ejemplo.com"
+                    {...form.register("email")}
+                  />
+                </FormControl>
+              </FormItem>
+              <FormItem>
                 <FormLabel>Teléfono</FormLabel>
                 <FormControl>
                   <Input {...form.register("telefono")} />
@@ -340,7 +374,9 @@ export default function Clients() {
       <Dialog open={claveOpen} onOpenChange={(v) => setClaveOpen(v)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-blue-600 dark:text-blue-400">Confirmar acción</DialogTitle>
+            <DialogTitle className="text-blue-600 dark:text-blue-400">
+              Confirmar acción
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 mt-2">
             <p className="text-sm text-muted-foreground">

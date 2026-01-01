@@ -12,6 +12,7 @@ import {
   MoreHorizontal,
   Pause,
   Play,
+  Send,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -55,18 +56,28 @@ import {
 } from "@/lib/utils";
 import type { Subscription, DashboardStats } from "@shared/schema";
 
-interface SubscriptionWithClient extends Subscription {
+interface SubscriptionWithClient {
+  id: string;
   clientName: string;
   clientEmail?: string | null;
   projectName: string;
   contrato_url?: string | null;
   cliente?: string;
   proyecto?: string;
+  ultimo_recordatorio_cobro?: string | null;
+  monthlyAmount: number;
+  startDate: Date | string | null;
+  lastPaymentDate: Date | string | null;
+  nextPaymentDate: Date | string | null;
+  isActive: boolean;
 }
 
 function monthsBetween(startInput?: string | Date | null, endInput?: Date) {
   if (!startInput) return 0;
-  const start = typeof startInput === "string" ? new Date(startInput) : new Date(startInput as Date);
+  const start =
+    typeof startInput === "string"
+      ? new Date(startInput)
+      : new Date(startInput as Date);
   const end = endInput ?? new Date();
   // normalize times to compare dates only
   const sDay = start.getDate();
@@ -171,7 +182,9 @@ function SubscriptionCard({
 
           <div className="flex flex-col">
             <span className="text-sm text-muted-foreground">Inicio</span>
-            <span className="text-sm">{formatDate(subscription.startDate)}</span>
+            <span className="text-sm">
+              {formatDate(subscription.startDate)}
+            </span>
           </div>
 
           <div className="flex flex-col">
@@ -190,7 +203,10 @@ function SubscriptionCard({
                 : "-"}
             </span>
             <span className="text-xs text-muted-foreground mt-1">
-              Último pago: {subscription.lastPaymentDate ? formatDate(subscription.lastPaymentDate) : "Pendiente"}
+              Último pago:{" "}
+              {subscription.lastPaymentDate
+                ? formatDate(subscription.lastPaymentDate)
+                : "Pendiente"}
             </span>
           </div>
         </div>
@@ -218,16 +234,27 @@ function SubscriptionCard({
               )}
             </Badge>
             {isPaymentDue && subscription.isActive && (
-              <span className="text-xs text-red-500 font-medium">Pago vencido</span>
+              <span className="text-xs text-red-500 font-medium">
+                Pago vencido
+              </span>
             )}
             {isPaymentSoon && (
-              <span className="text-xs text-yellow-500">Vence en {daysUntilPayment} dias</span>
+              <span className="text-xs text-yellow-500">
+                Vence en {daysUntilPayment} dias
+              </span>
             )}
           </div>
 
           <div className="ml-auto w-full md:w-auto flex gap-2">
             {onToggleStatus && (
-              <Button size="sm" variant="outline" className="w-full md:w-auto" onClick={() => onToggleStatus(subscription.id, !subscription.isActive)}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full md:w-auto"
+                onClick={() =>
+                  onToggleStatus(subscription.id, !subscription.isActive)
+                }
+              >
                 {subscription.isActive ? "Pausar" : "Reactivar"}
               </Button>
             )}
@@ -249,25 +276,36 @@ export default function Subscriptions() {
   const { toast } = useToast();
   const [projectsMap, setProjectsMap] = useState<Record<string, string>>({});
   const [clientsMap, setClientsMap] = useState<Record<string, string>>({});
+  const [clientsEmailMap, setClientsEmailMap] = useState<
+    Record<string, string>
+  >({});
+  const [enviandoRecordatorio, setEnviandoRecordatorio] = useState<
+    Record<string, boolean>
+  >({});
 
   async function loadMeta() {
     try {
       const [pRes, cRes] = await Promise.all([
         supabase.from("proyectos").select("id,nombre"),
-        supabase.from("clientes").select("id,nombre"),
+        supabase.from("clientes").select("id,nombre,email"),
       ]);
       const pData = Array.isArray(pRes.data) ? pRes.data : [];
       const cData = Array.isArray(cRes.data) ? cRes.data : [];
       const pMap: Record<string, string> = {};
       const cMap: Record<string, string> = {};
+      const cEmailMap: Record<string, string> = {};
       pData.forEach((p: any) => {
         if (p?.id) pMap[p.id] = p.nombre ?? p.id;
       });
       cData.forEach((c: any) => {
-        if (c?.id) cMap[c.id] = c.nombre ?? c.id;
+        if (c?.id) {
+          cMap[c.id] = c.nombre ?? c.id;
+          if (c.email) cEmailMap[c.id] = c.email;
+        }
       });
       setProjectsMap(pMap);
       setClientsMap(cMap);
+      setClientsEmailMap(cEmailMap);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error("Error cargando meta:", err);
@@ -298,6 +336,7 @@ export default function Subscriptions() {
     cliente: r.cliente,
     proyecto: r.proyecto,
     clientName: clientsMap[r.cliente] ?? r.cliente ?? "Cliente",
+    clientEmail: clientsEmailMap[r.cliente] ?? null,
     projectName: projectsMap[r.proyecto] ?? r.proyecto ?? "Proyecto",
     monthlyAmount: Number(r.mensualidad ?? 0),
     startDate: r.fecha_de_creacion ?? r.created_at ?? null,
@@ -305,6 +344,7 @@ export default function Subscriptions() {
     nextPaymentDate: r.proxima_fecha_de_pago ?? null,
     contrato_url: r.contrato_url ?? null,
     isActive: r.is_active === undefined ? true : Boolean(r.is_active),
+    ultimo_recordatorio_cobro: r.ultimo_recordatorio_cobro ?? null,
   }));
 
   const filteredSubscriptions = subscriptionsList.filter((sub) => {
@@ -330,7 +370,7 @@ export default function Subscriptions() {
         ? new Date(sub.nextPaymentDate as string)
         : null;
       if (!next) {
-        matchesStatus = filterStatus === "all";
+        matchesStatus = false;
       } else {
         next.setHours(0, 0, 0, 0);
         if (today > next) matchesStatus = filterStatus === "atraso";
@@ -365,8 +405,8 @@ export default function Subscriptions() {
       const hondurasDate = utcToHondurasDate(s.nextPaymentDate);
       if (hondurasDate) {
         const year = hondurasDate.getFullYear();
-        const month = String(hondurasDate.getMonth() + 1).padStart(2, '0');
-        const day = String(hondurasDate.getDate()).padStart(2, '0');
+        const month = String(hondurasDate.getMonth() + 1).padStart(2, "0");
+        const day = String(hondurasDate.getDate()).padStart(2, "0");
         setProximaEdit(`${year}-${month}-${day}`);
       } else {
         setProximaEdit("");
@@ -376,6 +416,126 @@ export default function Subscriptions() {
     }
     setEditMode(false);
     setDetailOpen(true);
+  };
+
+  const enviarRecordatorioCobro = async (
+    suscripcion: SubscriptionWithClient
+  ) => {
+    try {
+      setEnviandoRecordatorio((prev) => ({ ...prev, [suscripcion.id]: true }));
+
+      // Verificar si tiene email
+      if (!suscripcion.clientEmail) {
+        toast({
+          title: "Email no configurado",
+          description: "Este cliente no tiene un email registrado",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Calcular días de atraso
+      if (!suscripcion.nextPaymentDate) {
+        toast({
+          title: "Fecha de pago no configurada",
+          description: "Esta suscripción no tiene fecha de próximo pago",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const nextDate = new Date(suscripcion.nextPaymentDate);
+      nextDate.setHours(0, 0, 0, 0);
+      const diasAtraso = Math.floor(
+        (today.getTime() - nextDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      if (diasAtraso < 2) {
+        toast({
+          title: "No aplica recordatorio",
+          description:
+            "El recordatorio solo se envía a partir de 2 días de atraso",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Verificar si ya se envió hoy
+      if (suscripcion.ultimo_recordatorio_cobro) {
+        const ultimoRecordatorio = new Date(
+          suscripcion.ultimo_recordatorio_cobro
+        );
+        ultimoRecordatorio.setHours(0, 0, 0, 0);
+        if (ultimoRecordatorio.getTime() === today.getTime()) {
+          toast({
+            title: "Ya enviado hoy",
+            description: "Ya se envió un recordatorio hoy a este cliente",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      // Obtener variables de entorno
+      const scriptUrl = import.meta.env.VITE_GOOGLE_SCRIPT_URL;
+      const apiKey = import.meta.env.VITE_GOOGLE_SCRIPT_API_KEY;
+
+      if (!scriptUrl || !apiKey) {
+        toast({
+          title: "Configuración faltante",
+          description:
+            "No se han configurado las variables de entorno para el envío de correos",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Enviar al Google Apps Script
+      const response = await fetch(scriptUrl, {
+        method: "POST",
+        mode: "no-cors",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          apiKey,
+          clienteEmail: suscripcion.clientEmail,
+          clienteNombre: suscripcion.clientName,
+          proyectoNombre: suscripcion.projectName,
+          mensualidad: suscripcion.monthlyAmount,
+          diasAtraso,
+          fechaVencimiento: formatDate(suscripcion.nextPaymentDate),
+        }),
+      });
+
+      // Como usamos no-cors, no podemos leer la respuesta, asumimos éxito
+      // Actualizar fecha de último recordatorio
+      const { error: updateError } = await supabase
+        .from("suscripciones")
+        .update({ ultimo_recordatorio_cobro: new Date().toISOString() })
+        .eq("id", suscripcion.id);
+
+      if (updateError) throw updateError;
+
+      // Refrescar datos
+      queryClient.invalidateQueries({ queryKey: ["suscripciones"] });
+
+      toast({
+        title: "Recordatorio enviado",
+        description: `Se envió el recordatorio de cobro a ${suscripcion.clientName}`,
+      });
+    } catch (err: any) {
+      console.error("Error enviando recordatorio:", err);
+      toast({
+        title: "Error al enviar recordatorio",
+        description: err?.message ?? String(err),
+        variant: "destructive",
+      });
+    } finally {
+      setEnviandoRecordatorio((prev) => ({ ...prev, [suscripcion.id]: false }));
+    }
   };
 
   const closeDetail = () => {
@@ -419,37 +579,35 @@ export default function Subscriptions() {
 
   const saveEdits = async () => {
     if (!selected) return;
-    
+
     // Verificar si se está cambiando la próxima fecha de pago
     let originalProxima = "";
     if (selected.nextPaymentDate) {
       const hondurasDate = utcToHondurasDate(selected.nextPaymentDate);
       if (hondurasDate) {
         const year = hondurasDate.getFullYear();
-        const month = String(hondurasDate.getMonth() + 1).padStart(2, '0');
-        const day = String(hondurasDate.getDate()).padStart(2, '0');
+        const month = String(hondurasDate.getMonth() + 1).padStart(2, "0");
+        const day = String(hondurasDate.getDate()).padStart(2, "0");
         originalProxima = `${year}-${month}-${day}`;
       }
     }
     const cambioFecha = proximaEdit !== originalProxima;
-    
+
     // Si se cambia la fecha, pedir confirmación de clave
     if (cambioFecha) {
       setShowPasswordConfirm(true);
       return;
     }
-    
+
     // Si no hay cambio de fecha, guardar directamente
     await performSave();
   };
-  
+
   const performSave = async () => {
     if (!selected) return;
     try {
       const mensual = mensualidadEdit ? Number(mensualidadEdit) : 0;
-      const proxIso = proximaEdit
-        ? hondurasToUTC(proximaEdit)
-        : null;
+      const proxIso = proximaEdit ? hondurasToUTC(proximaEdit) : null;
       const updates: any = { mensualidad: mensual };
       if (proxIso) updates.proxima_fecha_de_pago = proxIso;
 
@@ -458,7 +616,7 @@ export default function Subscriptions() {
         .update(updates)
         .eq("id", selected.id);
       if (error) throw error;
-      
+
       // actualizar seleccionado localmente con los nuevos valores
       const updatedSelected = {
         ...selected,
@@ -466,22 +624,22 @@ export default function Subscriptions() {
         nextPaymentDate: proxIso,
       };
       setSelected(updatedSelected);
-      
+
       // Actualizar también los campos de edición con los valores guardados
       setMensualidadEdit(String(mensual));
       if (proxIso) {
         const hondurasDate = utcToHondurasDate(proxIso);
         if (hondurasDate) {
           const year = hondurasDate.getFullYear();
-          const month = String(hondurasDate.getMonth() + 1).padStart(2, '0');
-          const day = String(hondurasDate.getDate()).padStart(2, '0');
+          const month = String(hondurasDate.getMonth() + 1).padStart(2, "0");
+          const day = String(hondurasDate.getDate()).padStart(2, "0");
           setProximaEdit(`${year}-${month}-${day}`);
         }
       }
-      
+
       // refrescar queries
       queryClient.invalidateQueries({ queryKey: ["suscripciones"] });
-      
+
       toast({ title: "Suscripción actualizada" });
       setEditMode(false);
       setShowPasswordConfirm(false);
@@ -495,7 +653,7 @@ export default function Subscriptions() {
       });
     }
   };
-  
+
   const confirmPasswordAndSave = async () => {
     // Validar la contraseña desde la configuración
     try {
@@ -504,7 +662,7 @@ export default function Subscriptions() {
         .select("clave")
         .limit(1)
         .single();
-      
+
       if (configError) {
         console.error("Error obteniendo configuración:", configError);
         toast({
@@ -514,23 +672,24 @@ export default function Subscriptions() {
         });
         return;
       }
-      
+
       console.log("Configuración obtenida:", configData);
       console.log("Clave en configuración:", configData?.clave);
       console.log("Contraseña ingresada:", passwordInput);
-      
+
       const adminPassword = configData?.clave;
-      
+
       // Si no hay contraseña configurada, usar admin123 por defecto
       if (!adminPassword) {
         toast({
           title: "Contraseña no configurada",
-          description: "Por favor configura una contraseña en Configuración primero",
+          description:
+            "Por favor configura una contraseña en Configuración primero",
           variant: "destructive",
         });
         return;
       }
-      
+
       if (passwordInput !== adminPassword) {
         console.log("Contraseñas no coinciden");
         toast({
@@ -540,7 +699,7 @@ export default function Subscriptions() {
         });
         return;
       }
-      
+
       console.log("Contraseña correcta, guardando...");
       // Si la contraseña es correcta, guardar
       await performSave();
@@ -721,7 +880,7 @@ export default function Subscriptions() {
                   <TableHead>Estado</TableHead>
                   <TableHead>Activo</TableHead>
                   <TableHead>Contrato</TableHead>
-                  <TableHead>Acción</TableHead>
+                  <TableHead>Recordatorio</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -745,7 +904,9 @@ export default function Subscriptions() {
                       {s.startDate ? formatDate(s.startDate) : "-"}
                     </TableCell>
                     <TableCell>
-                      {s.startDate ? `${monthsBetween(s.startDate)} meses` : "-"}
+                      {s.startDate
+                        ? `${monthsBetween(s.startDate)} meses`
+                        : "-"}
                     </TableCell>
                     <TableCell>
                       {s.nextPaymentDate ? formatDate(s.nextPaymentDate) : "-"}
@@ -796,20 +957,51 @@ export default function Subscriptions() {
                         proyectoId={s.proyecto}
                       />
                     </TableCell>
-                    <TableCell>
-                      {/* Mostrar botón Cobrar sólo si está en atraso */}
-                      {s.nextPaymentDate
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      {/* Botón de recordatorio de cobro: solo si >= 2 días de atraso */}
+                      {s.nextPaymentDate && s.isActive
                         ? (() => {
                             const today = new Date();
                             const next = new Date(s.nextPaymentDate as string);
                             today.setHours(0, 0, 0, 0);
                             next.setHours(0, 0, 0, 0);
-                            const isAtraso = today > next;
-                            return isAtraso ? (
-                              <Button size="sm" variant="destructive">
-                                Cobrar
-                              </Button>
-                            ) : null;
+                            const diasAtraso = Math.floor(
+                              (today.getTime() - next.getTime()) /
+                                (1000 * 60 * 60 * 24)
+                            );
+
+                            // Verificar si ya se envió hoy
+                            let yaEnviadoHoy = false;
+                            if (s.ultimo_recordatorio_cobro) {
+                              const ultimoRecordatorio = new Date(
+                                s.ultimo_recordatorio_cobro
+                              );
+                              ultimoRecordatorio.setHours(0, 0, 0, 0);
+                              yaEnviadoHoy =
+                                ultimoRecordatorio.getTime() ===
+                                today.getTime();
+                            }
+
+                            if (diasAtraso >= 2) {
+                              return yaEnviadoHoy ? (
+                                <span className="text-xs text-muted-foreground">
+                                  Enviado hoy
+                                </span>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  disabled={enviandoRecordatorio[s.id]}
+                                  onClick={() => enviarRecordatorioCobro(s)}
+                                >
+                                  <Send className="h-3 w-3 mr-1" />
+                                  {enviandoRecordatorio[s.id]
+                                    ? "Enviando..."
+                                    : "Recordatorio"}
+                                </Button>
+                              );
+                            }
+                            return null;
                           })()
                         : null}
                     </TableCell>
@@ -827,15 +1019,17 @@ export default function Subscriptions() {
           >
             <DialogContent className="max-w-[95vw] md:max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader className="space-y-2">
-                <DialogTitle className="text-lg md:text-xl">Detalle de Suscripción</DialogTitle>
+                <DialogTitle className="text-lg md:text-xl">
+                  Detalle de Suscripción
+                </DialogTitle>
               </DialogHeader>
 
               <div className="mt-2 md:mt-4">
                 {selected ? (
                   !editMode ? (
                     <div className="space-y-4">
-                      <SubscriptionCard 
-                        subscription={selected} 
+                      <SubscriptionCard
+                        subscription={selected}
                         onContratoUpdated={handleContratoUpdatedAndClose}
                       />
                     </div>
@@ -874,12 +1068,19 @@ export default function Subscriptions() {
                         >
                           Cancelar
                         </Button>
-                        <Button onClick={saveEdits} className="w-full sm:w-auto">Guardar</Button>
+                        <Button
+                          onClick={saveEdits}
+                          className="w-full sm:w-auto"
+                        >
+                          Guardar
+                        </Button>
                       </div>
                     </div>
                   )
                 ) : (
-                  <p className="text-center text-muted-foreground py-4">No hay detalle seleccionado</p>
+                  <p className="text-center text-muted-foreground py-4">
+                    No hay detalle seleccionado
+                  </p>
                 )}
               </div>
 
@@ -909,8 +1110,8 @@ export default function Subscriptions() {
                       Editar
                     </Button>
                   )}
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     onClick={closeDetail}
                     className="w-full sm:w-auto order-3"
                   >
@@ -920,19 +1121,25 @@ export default function Subscriptions() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          
+
           {/* Diálogo de confirmación de contraseña */}
-          <Dialog open={showPasswordConfirm} onOpenChange={(v) => {
-            setShowPasswordConfirm(v);
-            if (!v) setPasswordInput("");
-          }}>
+          <Dialog
+            open={showPasswordConfirm}
+            onOpenChange={(v) => {
+              setShowPasswordConfirm(v);
+              if (!v) setPasswordInput("");
+            }}
+          >
             <DialogContent className="max-w-[95vw] md:max-w-md">
               <DialogHeader>
-                <DialogTitle className="text-base md:text-lg">Confirmar cambio de fecha de pago</DialogTitle>
+                <DialogTitle className="text-base md:text-lg">
+                  Confirmar cambio de fecha de pago
+                </DialogTitle>
               </DialogHeader>
               <div className="mt-4 space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Para modificar la próxima fecha de pago, ingresa la contraseña de administrador.
+                  Para modificar la próxima fecha de pago, ingresa la contraseña
+                  de administrador.
                 </p>
                 <div className="space-y-2">
                   <label className="block text-sm font-medium">
@@ -961,7 +1168,7 @@ export default function Subscriptions() {
                 >
                   Cancelar
                 </Button>
-                <Button 
+                <Button
                   onClick={confirmPasswordAndSave}
                   className="w-full sm:w-auto order-1 sm:order-2"
                 >

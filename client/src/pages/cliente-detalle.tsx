@@ -44,58 +44,77 @@ export default function ClienteDetalle() {
   // Estados para modales de contratos
   const [selectedContract, setSelectedContract] = useState<any | null>(null);
   const [contractModalOpen, setContractModalOpen] = useState(false);
-  const [editingDateContract, setEditingDateContract] = useState<string | null>(null);
+  const [editingDateContract, setEditingDateContract] = useState<string | null>(
+    null
+  );
   const [isEditingProximoPago, setIsEditingProximoPago] = useState(false);
   const [confirmUpdateOpen, setConfirmUpdateOpen] = useState(false);
   const [contractPayments, setContractPayments] = useState<any[]>([]);
   const [contractPaymentsLoading, setContractPaymentsLoading] = useState(false);
 
   // Estados para modales de suscripciones
-  const [selectedSuscripcion, setSelectedSuscripcion] = useState<any | null>(null);
+  const [selectedSuscripcion, setSelectedSuscripcion] = useState<any | null>(
+    null
+  );
   const [suscripcionModalOpen, setSuscripcionModalOpen] = useState(false);
   const [suscripcionPayments, setSuscripcionPayments] = useState<any[]>([]);
-  const [suscripcionPaymentsLoading, setSuscripcionPaymentsLoading] = useState(false);
+  const [suscripcionPaymentsLoading, setSuscripcionPaymentsLoading] =
+    useState(false);
   const [isEditingSuscripcion, setIsEditingSuscripcion] = useState(false);
   const [editingMensualidad, setEditingMensualidad] = useState("");
   const [editingProximaFecha, setEditingProximaFecha] = useState("");
-  const [confirmUpdateSuscripcionOpen, setConfirmUpdateSuscripcionOpen] = useState(false);
+  const [confirmUpdateSuscripcionOpen, setConfirmUpdateSuscripcionOpen] =
+    useState(false);
 
   // Estado para modal de cobro
   const [cobroModalOpen, setCobroModalOpen] = useState(false);
   const [seleccionModalOpen, setSeleccionModalOpen] = useState(false);
-  const [selectedTipoForCobro, setSelectedTipoForCobro] = useState<"suscripcion" | "contrato" | null>(null);
-  const [selectedReferenciaForCobro, setSelectedReferenciaForCobro] = useState<any>(null);
+  const [selectedTipoForCobro, setSelectedTipoForCobro] = useState<
+    "suscripcion" | "contrato" | null
+  >(null);
+  const [selectedReferenciaForCobro, setSelectedReferenciaForCobro] =
+    useState<any>(null);
 
   useEffect(() => {
     async function load() {
       if (!id) return;
       setLoading(true);
       try {
-        const [cRes, pagosRes, contratosRes, subsRes, avancesRes] = await Promise.all([
-          supabase.from("clientes").select("*").eq("id", id).limit(1).single(),
-          supabase
-            .from("pagos")
-            .select(
-              "id,fecha_de_creacion,tipo,proyecto,monto,notas,referencia_id,created_at"
-            )
-            .eq("cliente", id)
-            .order("fecha_de_creacion", { ascending: false }),
-          supabase
-            .from("contratos")
-            .select(
-              "id,monto_total,pago_inicial,cantidad_de_pagos,proximo_pago,proyecto,estado,cliente"
-            )
-            .eq("cliente", id),
-          supabase
-            .from("suscripciones")
-            .select("id,mensualidad,proxima_fecha_de_pago,proyecto,is_active,cliente")
-            .eq("cliente", id),
-          supabase
-            .from("avances")
-            .select("id,nombre_proyecto,porcentaje_avance,estado,total_caracteristicas,caracteristicas_completadas")
-            .eq("cliente_id", id)
-            .order("fecha_creacion", { ascending: false }),
-        ]);
+        const [cRes, pagosRes, contratosRes, subsRes, avancesRes] =
+          await Promise.all([
+            supabase
+              .from("clientes")
+              .select("*")
+              .eq("id", id)
+              .limit(1)
+              .single(),
+            supabase
+              .from("pagos")
+              .select(
+                "id,fecha_de_creacion,tipo,proyecto,monto,notas,referencia_id,created_at"
+              )
+              .eq("cliente", id)
+              .order("fecha_de_creacion", { ascending: false }),
+            supabase
+              .from("contratos")
+              .select(
+                "id,monto_total,pago_inicial,cantidad_de_pagos,proximo_pago,proyecto,estado,cliente"
+              )
+              .eq("cliente", id),
+            supabase
+              .from("suscripciones")
+              .select(
+                "id,mensualidad,proxima_fecha_de_pago,proyecto,is_active,cliente"
+              )
+              .eq("cliente", id),
+            supabase
+              .from("avances")
+              .select(
+                "id,nombre_proyecto,porcentaje_avance,estado,total_caracteristicas,caracteristicas_completadas"
+              )
+              .eq("cliente_id", id)
+              .order("fecha_creacion", { ascending: false }),
+          ]);
 
         if (!cRes.error) setCliente(cRes.data);
         setPagos(Array.isArray(pagosRes.data) ? pagosRes.data : []);
@@ -148,21 +167,25 @@ export default function ClienteDetalle() {
   async function updateProximoPago() {
     if (!selectedContract) return;
     try {
-      const iso = editingDateContract ? new Date(editingDateContract).toISOString() : null;
+      const iso = editingDateContract
+        ? new Date(editingDateContract).toISOString()
+        : null;
       const { error } = await supabase
         .from("contratos")
         .update({ proximo_pago: iso })
         .eq("id", selectedContract.id);
       if (error) throw error;
       toast({ title: "Próximo pago actualizado" });
-      
+
       // Recargar datos
       const { data } = await supabase
         .from("contratos")
-        .select("id,monto_total,pago_inicial,cantidad_de_pagos,proximo_pago,proyecto,estado,cliente")
+        .select(
+          "id,monto_total,pago_inicial,cantidad_de_pagos,proximo_pago,proyecto,estado,cliente"
+        )
         .eq("cliente", id);
       setContratos(Array.isArray(data) ? data : []);
-      
+
       setConfirmUpdateOpen(false);
       setIsEditingProximoPago(false);
       setSelectedContract({ ...selectedContract, proximo_pago: iso });
@@ -221,14 +244,16 @@ export default function ClienteDetalle() {
         .eq("id", selectedSuscripcion.id);
       if (error) throw error;
       toast({ title: "Suscripción actualizada" });
-      
+
       // Recargar datos
       const { data } = await supabase
         .from("suscripciones")
-        .select("id,mensualidad,proxima_fecha_de_pago,proyecto,is_active,cliente")
+        .select(
+          "id,mensualidad,proxima_fecha_de_pago,proyecto,is_active,cliente"
+        )
         .eq("cliente", id);
       setSuscripciones(Array.isArray(data) ? data : []);
-      
+
       setConfirmUpdateSuscripcionOpen(false);
       setIsEditingSuscripcion(false);
       setSelectedSuscripcion({
@@ -257,14 +282,16 @@ export default function ClienteDetalle() {
       toast({
         title: newStatus ? "Suscripción reactivada" : "Suscripción pausada",
       });
-      
+
       // Recargar datos
       const { data } = await supabase
         .from("suscripciones")
-        .select("id,mensualidad,proxima_fecha_de_pago,proyecto,is_active,cliente")
+        .select(
+          "id,mensualidad,proxima_fecha_de_pago,proyecto,is_active,cliente"
+        )
         .eq("cliente", id);
       setSuscripciones(Array.isArray(data) ? data : []);
-      
+
       setSelectedSuscripcion({ ...selectedSuscripcion, is_active: newStatus });
     } catch (err: any) {
       console.error("Error cambiando estado de suscripción:", err);
@@ -356,9 +383,7 @@ export default function ClienteDetalle() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold">Detalle de Cliente</h1>
         {cliente && (
-          <Button onClick={() => setSeleccionModalOpen(true)}>
-            Cobrar
-          </Button>
+          <Button onClick={() => setSeleccionModalOpen(true)}>Cobrar</Button>
         )}
       </div>
       <div className="mt-6">
@@ -371,6 +396,19 @@ export default function ClienteDetalle() {
                 <div className="space-y-2">
                   <div>
                     <strong>Nombre:</strong> {cliente.nombre}
+                  </div>
+                  <div>
+                    <strong>Email:</strong>{" "}
+                    {cliente.email ? (
+                      <a
+                        href={`mailto:${cliente.email}`}
+                        className="text-primary hover:underline"
+                      >
+                        {cliente.email}
+                      </a>
+                    ) : (
+                      "—"
+                    )}
                   </div>
                   <div>
                     <strong>Teléfono:</strong> {cliente.telefono ?? "—"}
@@ -533,7 +571,9 @@ export default function ClienteDetalle() {
                   <CardTitle>Contratos activos</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {contratosWithRestante.filter((c: any) => c.estado === "activo").length === 0 ? (
+                  {contratosWithRestante.filter(
+                    (c: any) => c.estado === "activo"
+                  ).length === 0 ? (
                     <div className="text-sm text-muted-foreground">
                       No hay contratos activos
                     </div>
@@ -567,7 +607,9 @@ export default function ClienteDetalle() {
                                   {formatCurrency(Number(c.restante ?? 0))}
                                 </TableCell>
                                 <TableCell className="text-sm">
-                                  {c.proximo_pago ? formatDate(c.proximo_pago) : "-"}
+                                  {c.proximo_pago
+                                    ? formatDate(c.proximo_pago)
+                                    : "-"}
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -584,7 +626,8 @@ export default function ClienteDetalle() {
                   <CardTitle>Suscripciones activas</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {suscripciones.filter((s: any) => s.is_active).length === 0 ? (
+                  {suscripciones.filter((s: any) => s.is_active).length ===
+                  0 ? (
                     <div className="text-sm text-muted-foreground">
                       No hay suscripciones activas
                     </div>
@@ -627,10 +670,15 @@ export default function ClienteDetalle() {
                                       : null;
                                     today.setHours(0, 0, 0, 0);
                                     if (nextDate) nextDate.setHours(0, 0, 0, 0);
-                                    const isOverdue = nextDate && today > nextDate;
+                                    const isOverdue =
+                                      nextDate && today > nextDate;
                                     return (
                                       <Badge
-                                        variant={isOverdue ? "destructive" : "secondary"}
+                                        variant={
+                                          isOverdue
+                                            ? "destructive"
+                                            : "secondary"
+                                        }
                                       >
                                         {isOverdue ? "Vencida" : "Al día"}
                                       </Badge>
@@ -711,7 +759,10 @@ export default function ClienteDetalle() {
                                     Progreso
                                   </span>
                                   <span className="font-bold text-primary">
-                                    {Number(avance.porcentaje_avance).toFixed(0)}%
+                                    {Number(avance.porcentaje_avance).toFixed(
+                                      0
+                                    )}
+                                    %
                                   </span>
                                 </div>
                                 <Progress
@@ -887,7 +938,9 @@ export default function ClienteDetalle() {
                 </p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Cantidad de pagos</p>
+                <p className="text-sm text-muted-foreground">
+                  Cantidad de pagos
+                </p>
                 <p className="font-medium">
                   {selectedContract?.cantidad_de_pagos ?? "-"}
                 </p>
@@ -916,7 +969,9 @@ export default function ClienteDetalle() {
                   <input
                     type="datetime-local"
                     value={editingDateContract ?? ""}
-                    onChange={(e) => setEditingDateContract(e.target.value || null)}
+                    onChange={(e) =>
+                      setEditingDateContract(e.target.value || null)
+                    }
                     className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
                   <div className="flex gap-2">
@@ -925,7 +980,9 @@ export default function ClienteDetalle() {
                       variant="outline"
                       onClick={() => {
                         const val = selectedContract?.proximo_pago
-                          ? new Date(selectedContract.proximo_pago).toISOString().slice(0, 16)
+                          ? new Date(selectedContract.proximo_pago)
+                              .toISOString()
+                              .slice(0, 16)
                           : "";
                         setEditingDateContract(val || null);
                         setIsEditingProximoPago(false);
@@ -952,10 +1009,14 @@ export default function ClienteDetalle() {
 
             {/* Pagos realizados */}
             <div>
-              <p className="text-sm text-muted-foreground mb-2">Pagos realizados</p>
+              <p className="text-sm text-muted-foreground mb-2">
+                Pagos realizados
+              </p>
               <div className="max-h-48 overflow-auto border rounded-md">
                 {contractPaymentsLoading ? (
-                  <div className="p-3 text-sm text-muted-foreground">Cargando...</div>
+                  <div className="p-3 text-sm text-muted-foreground">
+                    Cargando...
+                  </div>
                 ) : contractPayments.length === 0 ? (
                   <div className="p-3 text-sm text-muted-foreground">
                     No hay pagos registrados
@@ -964,9 +1025,15 @@ export default function ClienteDetalle() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left">
-                        <th className="px-3 py-2 text-xs text-muted-foreground">Fecha</th>
-                        <th className="px-3 py-2 text-xs text-muted-foreground">Monto</th>
-                        <th className="px-3 py-2 text-xs text-muted-foreground">Notas</th>
+                        <th className="px-3 py-2 text-xs text-muted-foreground">
+                          Fecha
+                        </th>
+                        <th className="px-3 py-2 text-xs text-muted-foreground">
+                          Monto
+                        </th>
+                        <th className="px-3 py-2 text-xs text-muted-foreground">
+                          Notas
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1008,7 +1075,10 @@ export default function ClienteDetalle() {
       </Dialog>
 
       {/* Modal de confirmación para actualizar próximo pago */}
-      <Dialog open={confirmUpdateOpen} onOpenChange={(v) => setConfirmUpdateOpen(v)}>
+      <Dialog
+        open={confirmUpdateOpen}
+        onOpenChange={(v) => setConfirmUpdateOpen(v)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirmar actualización</DialogTitle>
@@ -1041,7 +1111,10 @@ export default function ClienteDetalle() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmUpdateOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmUpdateOpen(false)}
+            >
               Cancelar
             </Button>
             <Button onClick={async () => await updateProximoPago()}>
@@ -1080,7 +1153,9 @@ export default function ClienteDetalle() {
             <div>
               <p className="text-sm text-muted-foreground mb-2">Estado</p>
               <Badge
-                variant={selectedSuscripcion?.is_active ? "default" : "secondary"}
+                variant={
+                  selectedSuscripcion?.is_active ? "default" : "secondary"
+                }
               >
                 {selectedSuscripcion?.is_active ? "Activa" : "Pausada"}
               </Badge>
@@ -1116,12 +1191,15 @@ export default function ClienteDetalle() {
                   <Button
                     variant="outline"
                     onClick={() => {
-                      setEditingMensualidad(String(selectedSuscripcion?.mensualidad ?? ""));
-                      const fechaVal = selectedSuscripcion?.proxima_fecha_de_pago
-                        ? new Date(selectedSuscripcion.proxima_fecha_de_pago)
-                            .toISOString()
-                            .slice(0, 10)
-                        : "";
+                      setEditingMensualidad(
+                        String(selectedSuscripcion?.mensualidad ?? "")
+                      );
+                      const fechaVal =
+                        selectedSuscripcion?.proxima_fecha_de_pago
+                          ? new Date(selectedSuscripcion.proxima_fecha_de_pago)
+                              .toISOString()
+                              .slice(0, 10)
+                          : "";
                       setEditingProximaFecha(fechaVal);
                       setIsEditingSuscripcion(false);
                     }}
@@ -1138,7 +1216,9 @@ export default function ClienteDetalle() {
                 <div>
                   <p className="text-sm text-muted-foreground">Mensualidad</p>
                   <p className="font-semibold text-lg">
-                    {formatCurrency(Number(selectedSuscripcion?.mensualidad ?? 0))}
+                    {formatCurrency(
+                      Number(selectedSuscripcion?.mensualidad ?? 0)
+                    )}
                   </p>
                 </div>
                 <div>
@@ -1163,10 +1243,14 @@ export default function ClienteDetalle() {
 
             {/* Pagos realizados */}
             <div>
-              <p className="text-sm text-muted-foreground mb-2">Pagos realizados</p>
+              <p className="text-sm text-muted-foreground mb-2">
+                Pagos realizados
+              </p>
               <div className="max-h-48 overflow-auto border rounded-md">
                 {suscripcionPaymentsLoading ? (
-                  <div className="p-3 text-sm text-muted-foreground">Cargando...</div>
+                  <div className="p-3 text-sm text-muted-foreground">
+                    Cargando...
+                  </div>
                 ) : suscripcionPayments.length === 0 ? (
                   <div className="p-3 text-sm text-muted-foreground">
                     No hay pagos registrados
@@ -1175,9 +1259,15 @@ export default function ClienteDetalle() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left">
-                        <th className="px-3 py-2 text-xs text-muted-foreground">Fecha</th>
-                        <th className="px-3 py-2 text-xs text-muted-foreground">Monto</th>
-                        <th className="px-3 py-2 text-xs text-muted-foreground">Notas</th>
+                        <th className="px-3 py-2 text-xs text-muted-foreground">
+                          Fecha
+                        </th>
+                        <th className="px-3 py-2 text-xs text-muted-foreground">
+                          Monto
+                        </th>
+                        <th className="px-3 py-2 text-xs text-muted-foreground">
+                          Notas
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1206,7 +1296,9 @@ export default function ClienteDetalle() {
           <DialogFooter>
             <div className="flex gap-2 justify-between w-full">
               <Button
-                variant={selectedSuscripcion?.is_active ? "destructive" : "default"}
+                variant={
+                  selectedSuscripcion?.is_active ? "destructive" : "default"
+                }
                 onClick={toggleSuscripcionStatus}
               >
                 {selectedSuscripcion?.is_active
@@ -1242,19 +1334,25 @@ export default function ClienteDetalle() {
           </DialogHeader>
           <div className="space-y-3 py-4">
             <div>
-              <p className="text-sm text-muted-foreground">Mensualidad actual:</p>
+              <p className="text-sm text-muted-foreground">
+                Mensualidad actual:
+              </p>
               <p className="font-medium">
                 {formatCurrency(Number(selectedSuscripcion?.mensualidad ?? 0))}
               </p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Nueva mensualidad:</p>
+              <p className="text-sm text-muted-foreground">
+                Nueva mensualidad:
+              </p>
               <p className="font-medium">
                 {formatCurrency(Number(editingMensualidad ?? 0))}
               </p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Nueva fecha de pago:</p>
+              <p className="text-sm text-muted-foreground">
+                Nueva fecha de pago:
+              </p>
               <p className="font-medium">
                 {editingProximaFecha
                   ? new Date(editingProximaFecha).toLocaleDateString("es-ES", {
@@ -1293,7 +1391,9 @@ export default function ClienteDetalle() {
       >
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Seleccionar contrato o suscripción para cobrar</DialogTitle>
+            <DialogTitle>
+              Seleccionar contrato o suscripción para cobrar
+            </DialogTitle>
             <DialogDescription>
               Selecciona un contrato o suscripción para proceder con el cobro
             </DialogDescription>
@@ -1303,7 +1403,8 @@ export default function ClienteDetalle() {
             {/* Sección de Contratos Activos */}
             <div>
               <h3 className="font-semibold text-lg mb-3">Contratos activos</h3>
-              {contratosWithRestante.filter((c: any) => c.estado === "activo").length === 0 ? (
+              {contratosWithRestante.filter((c: any) => c.estado === "activo")
+                .length === 0 ? (
                 <div className="text-sm text-muted-foreground p-4 border rounded-lg">
                   No hay contratos activos
                 </div>
@@ -1326,16 +1427,22 @@ export default function ClienteDetalle() {
                           <div className="flex-1">
                             <p className="font-medium">{c.proyecto ?? "-"}</p>
                             <p className="text-sm text-muted-foreground mt-1">
-                              Monto total: {formatCurrency(Number(c.monto_total ?? 0))}
+                              Monto total:{" "}
+                              {formatCurrency(Number(c.monto_total ?? 0))}
                             </p>
                             <p className="text-sm text-primary font-medium mt-1">
-                              Saldo pendiente: {formatCurrency(Number(c.restante ?? 0))}
+                              Saldo pendiente:{" "}
+                              {formatCurrency(Number(c.restante ?? 0))}
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="text-xs text-muted-foreground">Próximo pago</p>
+                            <p className="text-xs text-muted-foreground">
+                              Próximo pago
+                            </p>
                             <p className="text-sm font-medium">
-                              {c.proximo_pago ? formatDate(c.proximo_pago) : "-"}
+                              {c.proximo_pago
+                                ? formatDate(c.proximo_pago)
+                                : "-"}
                             </p>
                           </div>
                         </div>
@@ -1347,7 +1454,9 @@ export default function ClienteDetalle() {
 
             {/* Sección de Suscripciones Activas */}
             <div>
-              <h3 className="font-semibold text-lg mb-3">Suscripciones activas</h3>
+              <h3 className="font-semibold text-lg mb-3">
+                Suscripciones activas
+              </h3>
               {suscripciones.filter((s: any) => s.is_active).length === 0 ? (
                 <div className="text-sm text-muted-foreground p-4 border rounded-lg">
                   No hay suscripciones activas
@@ -1379,19 +1488,26 @@ export default function ClienteDetalle() {
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
-                                <p className="font-medium">{s.proyecto ?? "-"}</p>
+                                <p className="font-medium">
+                                  {s.proyecto ?? "-"}
+                                </p>
                                 <Badge
-                                  variant={isOverdue ? "destructive" : "secondary"}
+                                  variant={
+                                    isOverdue ? "destructive" : "secondary"
+                                  }
                                 >
                                   {isOverdue ? "Vencida" : "Al día"}
                                 </Badge>
                               </div>
                               <p className="text-sm text-muted-foreground mt-1">
-                                Mensualidad: {formatCurrency(Number(s.mensualidad ?? 0))}
+                                Mensualidad:{" "}
+                                {formatCurrency(Number(s.mensualidad ?? 0))}
                               </p>
                             </div>
                             <div className="text-right">
-                              <p className="text-xs text-muted-foreground">Próximo pago</p>
+                              <p className="text-xs text-muted-foreground">
+                                Próximo pago
+                              </p>
                               <p className="text-sm font-medium">
                                 {s.proxima_fecha_de_pago
                                   ? formatDate(s.proxima_fecha_de_pago)
@@ -1457,7 +1573,9 @@ export default function ClienteDetalle() {
               });
             supabase
               .from("suscripciones")
-              .select("id,mensualidad,proxima_fecha_de_pago,proyecto,is_active,cliente")
+              .select(
+                "id,mensualidad,proxima_fecha_de_pago,proyecto,is_active,cliente"
+              )
               .eq("cliente", id)
               .then(({ data }) => {
                 setSuscripciones(Array.isArray(data) ? data : []);

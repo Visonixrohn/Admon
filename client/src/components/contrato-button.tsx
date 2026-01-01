@@ -90,7 +90,11 @@ export default function ContratoButton({
                 e.stopPropagation();
                 setDialogOpen(true);
               }}
-              className={contratoUrl ? "text-green-600 hover:text-green-700" : "text-muted-foreground"}
+              className={
+                contratoUrl
+                  ? "text-green-600 hover:text-green-700"
+                  : "text-muted-foreground"
+              }
             >
               {contratoUrl ? (
                 <FileText className="h-4 w-4" />

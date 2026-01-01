@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 type Cliente = {
   id: string;
   nombre: string;
+  email?: string | null;
   telefono?: string | null;
   rtn?: string | null;
   oficio?: string | null;
@@ -40,6 +41,7 @@ export function useClientes() {
         .insert([
           {
             nombre: payload.nombre,
+            email: payload.email ?? null,
             telefono: payload.telefono ?? null,
             rtn: payload.rtn ?? null,
             oficio: payload.oficio ?? null,
@@ -64,6 +66,7 @@ export function useClientes() {
         .from("clientes")
         .update({
           nombre: payload.nombre,
+          email: payload.email ?? null,
           telefono: payload.telefono ?? null,
           rtn: payload.rtn ?? null,
           oficio: payload.oficio ?? null,

@@ -3,6 +3,7 @@
 ## 📋 Resumen
 
 Se ha implementado la funcionalidad completa para gestionar contratos PDF en el sistema, permitiendo:
+
 - ✅ Subir contratos firmados en formato PDF
 - ✅ Visualizar contratos existentes
 - ✅ Eliminar y actualizar contratos
@@ -17,6 +18,7 @@ Se ha implementado la funcionalidad completa para gestionar contratos PDF en el 
 Se debe ejecutar el archivo: [`sql/venta_contrato_column.sql`](sql/venta_contrato_column.sql)
 
 Este script agrega la columna `contrato_url` a tres tablas:
+
 - ✅ `venta`
 - ✅ `contratos`
 - ✅ `suscripciones`
@@ -45,12 +47,14 @@ Consulta el archivo: [`CONTRATOS_BUCKET_SETUP.md`](CONTRATOS_BUCKET_SETUP.md)
 **Resumen rápido:**
 
 1. **Crear bucket en Supabase Storage:**
+
    - Nombre: `contratos-firmados`
    - Tipo: **PRIVADO** (no público)
    - Tamaño máximo: 10 MB
    - Tipo permitido: `application/pdf`
 
 2. **Configurar políticas RLS (Row Level Security):**
+
    - **INSERT**: Permitir a usuarios autenticados subir contratos
    - **SELECT**: Permitir a usuarios autenticados ver contratos
    - **UPDATE**: Permitir a usuarios autenticados actualizar contratos
@@ -85,16 +89,19 @@ USING (bucket_id = 'contratos-firmados');
 
 ## 🎨 Componentes Creados
 
-### 1. `ContratoDialog` 
+### 1. `ContratoDialog`
+
 **Archivo:** [`client/src/components/contrato-dialog.tsx`](client/src/components/contrato-dialog.tsx)
 
 Modal para:
+
 - Subir contratos PDF (máximo 10 MB)
 - Visualizar contratos existentes en nueva pestaña
 - Eliminar contratos
 - Reemplazar contratos existentes
 
 **Props:**
+
 ```typescript
 interface ContratoDialogProps {
   open: boolean;
@@ -109,17 +116,20 @@ interface ContratoDialogProps {
 ```
 
 ### 2. `ContratoButton`
+
 **Archivo:** [`client/src/components/contrato-button.tsx`](client/src/components/contrato-button.tsx)
 
 Botón/Ícono para acceder al diálogo de contratos.
 
 **Variantes:**
+
 - **icon**: Muestra un ícono (usado en tablas)
   - 📄 Verde si tiene contrato
   - ⬆️ Gris si no tiene contrato
 - **button**: Muestra un botón con texto completo
 
 **Props:**
+
 ```typescript
 interface ContratoButtonProps {
   ventaId?: string;
@@ -137,6 +147,7 @@ interface ContratoButtonProps {
 ## 📍 Integración en Páginas
 
 ### 1. Ventas de Proyectos
+
 **Archivo:** [`client/src/pages/proyecto-ventas.tsx`](client/src/pages/proyecto-ventas.tsx)
 
 - ✅ Agregado campo `contrato_url` al tipo `VentaRow`
@@ -147,6 +158,7 @@ interface ContratoButtonProps {
 **Ubicación del botón:** Esquina superior derecha de cada card de venta
 
 ### 2. Contratos Activos
+
 **Archivo:** [`client/src/pages/contratos-activos.tsx`](client/src/pages/contratos-activos.tsx)
 
 - ✅ Importado componente `ContratoButton`
@@ -157,6 +169,7 @@ interface ContratoButtonProps {
 **Ubicación del botón:** Al lado del badge de estado en cada card
 
 ### 3. Suscripciones
+
 **Archivo:** [`client/src/pages/subscriptions.tsx`](client/src/pages/subscriptions.tsx)
 
 - ✅ Importado componente `ContratoButton`
@@ -167,6 +180,7 @@ interface ContratoButtonProps {
 - ✅ Configurado con `tableName="suscripciones"`
 
 **Ubicaciones:**
+
 - **En tabla:** Nueva columna "Contrato" con ícono
 - **En card de detalle:** Botón en la sección superior junto al menú
 
@@ -175,6 +189,7 @@ interface ContratoButtonProps {
 ## 🎯 Flujo de Usuario
 
 ### Si NO hay contrato registrado:
+
 1. Usuario ve ícono de "Subir" (⬆️) en gris
 2. Al hacer clic, se abre el modal
 3. Usuario selecciona archivo PDF (máx 10 MB)
@@ -183,6 +198,7 @@ interface ContratoButtonProps {
 6. El ícono cambia a verde (📄)
 
 ### Si YA hay contrato registrado:
+
 1. Usuario ve ícono verde (📄)
 2. Al hacer clic, se abre el modal con opciones:
    - **Ver Contrato**: Abre el PDF en nueva pestaña
@@ -218,23 +234,28 @@ contratos-firmados/
 ## 🧪 Pruebas Recomendadas
 
 ### 1. Prueba de subida
+
 - [ ] Subir un PDF válido (< 10 MB)
 - [ ] Intentar subir archivo no-PDF (debe rechazar)
 - [ ] Intentar subir archivo > 10 MB (debe rechazar)
 
 ### 2. Prueba de visualización
+
 - [ ] Ver contrato en nueva pestaña
 - [ ] Verificar que la URL firmada funcione
 
 ### 3. Prueba de actualización
+
 - [ ] Reemplazar un contrato existente
 - [ ] Verificar que el archivo anterior se elimine
 
 ### 4. Prueba de eliminación
+
 - [ ] Eliminar un contrato
 - [ ] Verificar que el campo `contrato_url` sea NULL
 
 ### 5. Prueba en diferentes secciones
+
 - [ ] Ventas de Proyectos
 - [ ] Contratos Activos
 - [ ] Suscripciones
@@ -244,16 +265,19 @@ contratos-firmados/
 ## 🐛 Solución de Problemas
 
 ### Error: "No se pudo subir el contrato"
+
 - Verificar que el bucket `contratos-firmados` exista
 - Verificar que las políticas RLS estén configuradas
 - Verificar que el usuario esté autenticado
 
 ### Error: "No se puede visualizar el contrato"
+
 - Verificar que la URL del contrato sea válida
 - Verificar que el archivo exista en Storage
 - Verificar permisos de lectura en el bucket
 
 ### El ícono no cambia de color
+
 - Verificar que `contrato_url` esté en la query
 - Verificar que se llame `onContratoUpdated()` después de subir
 - Refrescar la página

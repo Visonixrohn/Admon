@@ -154,74 +154,97 @@ export default function ProyectoVentas() {
                 .filter((v) => {
                   if (!searchQuery) return true;
                   const search = searchQuery.toLowerCase();
-                  const proyecto = (projectsMap[v.proyecto ?? ""] || v.proyecto || "").toLowerCase();
-                  const cliente = (clientsMap[v.cliente ?? ""] || v.cliente || "").toLowerCase();
+                  const proyecto = (
+                    projectsMap[v.proyecto ?? ""] ||
+                    v.proyecto ||
+                    ""
+                  ).toLowerCase();
+                  const cliente = (
+                    clientsMap[v.cliente ?? ""] ||
+                    v.cliente ||
+                    ""
+                  ).toLowerCase();
                   return proyecto.includes(search) || cliente.includes(search);
                 })
                 .map((v) => (
-                <Card key={v.id} className="hover-elevate shadow-sm transition-all">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-5 gap-4 items-center">
-                        <div className="flex items-center gap-2 sm:col-span-5 sm:justify-end sm:order-last">
-                          <ContratoButton
-                            ventaId={v.id}
-                            contratoUrl={v.contrato_url}
-                            onContratoUpdated={load}
-                            clienteId={v.cliente ?? undefined}
-                            proyectoId={v.proyecto ?? undefined}
-                            tableName="venta"
-                          />
-                        </div>
-                        <div className="min-w-0">
-                          <h3 className="font-semibold truncate">
-                            <Link href={`/clientes/proyecto/${v.proyecto}`} className="hover:underline">
-                              {projectsMap[v.proyecto ?? ""] ??
-                                v.proyecto ??
-                                "Proyecto sin nombre"}
-                            </Link>
-                          </h3>
-                          <div className="text-sm text-muted-foreground truncate">
-                            <Link href={`/clientes/${v.cliente}`} className="hover:underline">
-                              {clientsMap[v.cliente ?? ""] ?? v.cliente ?? "—"}
-                            </Link>
+                  <Card
+                    key={v.id}
+                    className="hover-elevate shadow-sm transition-all"
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-5 gap-4 items-center">
+                          <div className="flex items-center gap-2 sm:col-span-5 sm:justify-end sm:order-last">
+                            <ContratoButton
+                              ventaId={v.id}
+                              contratoUrl={v.contrato_url}
+                              onContratoUpdated={load}
+                              clienteId={v.cliente ?? undefined}
+                              proyectoId={v.proyecto ?? undefined}
+                              tableName="venta"
+                            />
                           </div>
-                        </div>
+                          <div className="min-w-0">
+                            <h3 className="font-semibold truncate">
+                              <Link
+                                href={`/clientes/proyecto/${v.proyecto}`}
+                                className="hover:underline"
+                              >
+                                {projectsMap[v.proyecto ?? ""] ??
+                                  v.proyecto ??
+                                  "Proyecto sin nombre"}
+                              </Link>
+                            </h3>
+                            <div className="text-sm text-muted-foreground truncate">
+                              <Link
+                                href={`/clientes/${v.cliente}`}
+                                className="hover:underline"
+                              >
+                                {clientsMap[v.cliente ?? ""] ??
+                                  v.cliente ??
+                                  "—"}
+                              </Link>
+                            </div>
+                          </div>
 
-                        <div className="text-sm">
-                          <div className="text-xs uppercase font-medium text-muted-foreground mb-1">
-                            Tipo
+                          <div className="text-sm">
+                            <div className="text-xs uppercase font-medium text-muted-foreground mb-1">
+                              Tipo
+                            </div>
+                            <Badge variant="secondary">
+                              {v.tipo_de_venta ?? "—"}
+                            </Badge>
                           </div>
-                          <Badge variant="secondary">{v.tipo_de_venta ?? "—"}</Badge>
-                        </div>
 
-                        <div className="text-sm">
-                          <div className="text-xs uppercase font-medium text-muted-foreground mb-1">
-                            Pago inicial
+                          <div className="text-sm">
+                            <div className="text-xs uppercase font-medium text-muted-foreground mb-1">
+                              Pago inicial
+                            </div>
+                            <div className="font-medium">
+                              {fmt(v.pago_inicial)}
+                            </div>
                           </div>
-                          <div className="font-medium">{fmt(v.pago_inicial)}</div>
-                        </div>
 
-                        <div className="text-sm">
-                          <div className="text-xs uppercase font-medium text-muted-foreground mb-1">
-                            Total / Mensualidad
+                          <div className="text-sm">
+                            <div className="text-xs uppercase font-medium text-muted-foreground mb-1">
+                              Total / Mensualidad
+                            </div>
+                            <div className="font-medium">
+                              {fmt(v.total_a_pagar)} / {fmt(v.mensualidad)}
+                            </div>
                           </div>
-                          <div className="font-medium">
-                            {fmt(v.total_a_pagar)} / {fmt(v.mensualidad)}
-                          </div>
-                        </div>
 
-                        <div className="text-sm">
-                          <div className="text-xs uppercase font-medium text-muted-foreground mb-1">
-                            Cant. pagos
+                          <div className="text-sm">
+                            <div className="text-xs uppercase font-medium text-muted-foreground mb-1">
+                              Cant. pagos
+                            </div>
+                            <div>{v.cantidad_de_pagos ?? "—"}</div>
                           </div>
-                          <div>{v.cantidad_de_pagos ?? "—"}</div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                ))}
             </div>
           )}
         </div>

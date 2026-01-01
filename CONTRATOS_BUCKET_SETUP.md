@@ -79,12 +79,14 @@ USING (
 ## 4. Configurar Límites de Archivo (Opcional pero Recomendado)
 
 En la configuración del bucket, puedes establecer:
+
 - **File size limit**: 10 MB (suficiente para PDFs)
 - **Allowed MIME types**: `application/pdf`
 
 ## 5. Estructura de Rutas en el Bucket
 
 Los contratos se guardarán con la siguiente estructura:
+
 ```
 contratos-firmados/
   ├── {venta-id}-{timestamp}.pdf
@@ -99,6 +101,7 @@ Ejemplo: `a1b2c3d4-1640995200000.pdf`
 Para verificar que todo funciona:
 
 1. **Desde SQL Editor en Supabase**:
+
 ```sql
 -- Verificar que el bucket existe
 SELECT * FROM storage.buckets WHERE name = 'contratos-firmados';
@@ -123,6 +126,7 @@ SELECT * FROM pg_policies WHERE tablename = 'objects';
 ## 8. URL de Acceso a los Contratos
 
 Una vez subido, la URL del contrato será:
+
 ```
 https://{tu-proyecto}.supabase.co/storage/v1/object/sign/contratos-firmados/{nombre-archivo}.pdf?token={token-temporal}
 ```

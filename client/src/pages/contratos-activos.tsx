@@ -10,7 +10,13 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { formatCurrency, formatDate, getInitials, hondurasToUTC, utcToHondurasDate } from "@/lib/utils";
+import {
+  formatCurrency,
+  formatDate,
+  getInitials,
+  hondurasToUTC,
+  utcToHondurasDate,
+} from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -151,10 +157,10 @@ export default function ContratosActivos() {
       const hondurasDate = utcToHondurasDate(contract.proximo_pago);
       if (hondurasDate) {
         const year = hondurasDate.getFullYear();
-        const month = String(hondurasDate.getMonth() + 1).padStart(2, '0');
-        const day = String(hondurasDate.getDate()).padStart(2, '0');
-        const hours = String(hondurasDate.getHours()).padStart(2, '0');
-        const minutes = String(hondurasDate.getMinutes()).padStart(2, '0');
+        const month = String(hondurasDate.getMonth() + 1).padStart(2, "0");
+        const day = String(hondurasDate.getDate()).padStart(2, "0");
+        const hours = String(hondurasDate.getHours()).padStart(2, "0");
+        const minutes = String(hondurasDate.getMinutes()).padStart(2, "0");
         val = `${year}-${month}-${day}T${hours}:${minutes}`;
       }
     }
@@ -477,7 +483,9 @@ export default function ContratosActivos() {
                         Monto pagado
                       </p>
                       <p className="font-semibold text-lg text-green-600">
-                        {formatCurrency(selectedContract?.pagos_registrados ?? 0)}
+                        {formatCurrency(
+                          selectedContract?.pagos_registrados ?? 0
+                        )}
                       </p>
                     </div>
                     <div>
@@ -526,13 +534,15 @@ export default function ContratosActivos() {
                         </Button>
                       )}
                     </div>
-                    
+
                     {isEditingProximoPago ? (
                       <div className="space-y-2">
                         <input
                           type="datetime-local"
                           value={editingDate ?? ""}
-                          onChange={(e) => setEditingDate(e.target.value || null)}
+                          onChange={(e) =>
+                            setEditingDate(e.target.value || null)
+                          }
                           className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         />
                         <div className="flex gap-2">
@@ -543,13 +553,23 @@ export default function ContratosActivos() {
                               // Resetear a la fecha original
                               let val = "";
                               if (selectedContract?.proximo_pago) {
-                                const hondurasDate = utcToHondurasDate(selectedContract.proximo_pago);
+                                const hondurasDate = utcToHondurasDate(
+                                  selectedContract.proximo_pago
+                                );
                                 if (hondurasDate) {
                                   const year = hondurasDate.getFullYear();
-                                  const month = String(hondurasDate.getMonth() + 1).padStart(2, '0');
-                                  const day = String(hondurasDate.getDate()).padStart(2, '0');
-                                  const hours = String(hondurasDate.getHours()).padStart(2, '0');
-                                  const minutes = String(hondurasDate.getMinutes()).padStart(2, '0');
+                                  const month = String(
+                                    hondurasDate.getMonth() + 1
+                                  ).padStart(2, "0");
+                                  const day = String(
+                                    hondurasDate.getDate()
+                                  ).padStart(2, "0");
+                                  const hours = String(
+                                    hondurasDate.getHours()
+                                  ).padStart(2, "0");
+                                  const minutes = String(
+                                    hondurasDate.getMinutes()
+                                  ).padStart(2, "0");
                                   val = `${year}-${month}-${day}T${hours}:${minutes}`;
                                 }
                               }
@@ -652,17 +672,23 @@ export default function ContratosActivos() {
             </Dialog>
 
             {/* Modal de confirmación para actualizar próximo pago */}
-            <Dialog open={confirmUpdateOpen} onOpenChange={(v) => setConfirmUpdateOpen(v)}>
+            <Dialog
+              open={confirmUpdateOpen}
+              onOpenChange={(v) => setConfirmUpdateOpen(v)}
+            >
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Confirmar actualización</DialogTitle>
                   <DialogDescription>
-                    ¿Estás seguro de que deseas actualizar la fecha del próximo pago?
+                    ¿Estás seguro de que deseas actualizar la fecha del próximo
+                    pago?
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-3 py-4">
                   <div>
-                    <p className="text-sm text-muted-foreground">Fecha actual:</p>
+                    <p className="text-sm text-muted-foreground">
+                      Fecha actual:
+                    </p>
                     <p className="font-medium">
                       {selectedContract?.proximo_pago
                         ? formatDate(selectedContract.proximo_pago)
@@ -670,15 +696,17 @@ export default function ContratosActivos() {
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Nueva fecha:</p>
+                    <p className="text-sm text-muted-foreground">
+                      Nueva fecha:
+                    </p>
                     <p className="font-medium">
                       {editingDate
-                        ? new Date(editingDate).toLocaleString('es-ES', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
+                        ? new Date(editingDate).toLocaleString("es-ES", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
                           })
                         : "No establecido"}
                     </p>
