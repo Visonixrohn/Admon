@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useEmailConfig } from "@/hooks/use-email-config";
 import {
   RefreshCcw,
   Search,
@@ -478,29 +479,18 @@ export default function Subscriptions() {
         }
       }
 
-      // Obtener variables de entorno
-      const scriptUrl = import.meta.env.VITE_GOOGLE_SCRIPT_URL;
-      const apiKey = import.meta.env.VITE_GOOGLE_SCRIPT_API_KEY;
-
-      if (!scriptUrl || !apiKey) {
-        toast({
-          title: "Configuración faltante",
-          description:
-            "No se han configurado las variables de entorno para el envío de correos",
-          variant: "destructive",
-        });
-        return;
-      }
+      // Obtener configuración del hook (funciona en desarrollo y producción)
+      const emailConfig = useEmailConfig();
 
       // Enviar al Google Apps Script
-      const response = await fetch(scriptUrl, {
+      await fetch(emailConfig.scriptUrl, {
         method: "POST",
         mode: "no-cors",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          apiKey,
+          apiKey: emailConfig.apiKey,
           clienteEmail: suscripcion.clientEmail,
           clienteNombre: suscripcion.clientName,
           proyectoNombre: suscripcion.projectName,
