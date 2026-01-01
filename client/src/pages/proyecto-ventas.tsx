@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "wouter";
 import { supabase } from "@/lib/supabase";
@@ -8,6 +8,7 @@ import { Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import VentaForm from "@/components/proyecto-venta-form";
 import { useToast } from "@/hooks/use-toast";
+import ContratoButton from "@/components/contrato-button";
 
 type VentaRow = {
   id: string;
@@ -19,6 +20,7 @@ type VentaRow = {
   cantidad_de_pagos?: number | null;
   total_a_pagar?: number | null;
   mensualidad?: number | null;
+  contrato_url?: string | null;
 };
 
 export default function ProyectoVentas() {
@@ -31,7 +33,7 @@ export default function ProyectoVentas() {
   const [projectsMap, setProjectsMap] = useState<Record<string, string>>({});
   const [clientsMap, setClientsMap] = useState<Record<string, string>>({});
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     const { data, error: e } = await supabase
@@ -48,7 +50,7 @@ export default function ProyectoVentas() {
       setVentas([]);
     }
     setLoading(false);
-  }
+  }, []);
 
   async function loadMeta() {
     try {
@@ -161,6 +163,16 @@ export default function ProyectoVentas() {
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
                       <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-5 gap-4 items-center">
+                        <div className="flex items-center gap-2 sm:col-span-5 sm:justify-end sm:order-last">
+                          <ContratoButton
+                            ventaId={v.id}
+                            contratoUrl={v.contrato_url}
+                            onContratoUpdated={load}
+                            clienteId={v.cliente ?? undefined}
+                            proyectoId={v.proyecto ?? undefined}
+                            tableName="venta"
+                          />
+                        </div>
                         <div className="min-w-0">
                           <h3 className="font-semibold truncate">
                             <Link href={`/clientes/proyecto/${v.proyecto}`} className="hover:underline">

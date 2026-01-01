@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,14 +26,17 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
+import ContratoButton from "@/components/contrato-button";
 
 export default function ContratosActivos() {
   function ContractCard({
     contract,
     onClick,
+    onContratoUpdated,
   }: {
     contract: any;
     onClick?: () => void;
+    onContratoUpdated?: () => void;
   }) {
     const daysAgo = contract.fecha_de_creacion
       ? Math.floor(
@@ -65,15 +68,27 @@ export default function ContratosActivos() {
                 </p>
               </div>
             </div>
-            <Badge
-              className={
-                contract.estado === "activo"
-                  ? "bg-green-500/10 text-green-600"
-                  : "bg-muted text-muted-foreground"
-              }
-            >
-              {contract.estado}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <div onClick={(e) => e.stopPropagation()}>
+                <ContratoButton
+                  contratoId={contract.id}
+                  contratoUrl={contract.contrato_url}
+                  onContratoUpdated={onContratoUpdated}
+                  tableName="contratos"
+                  clienteId={contract.cliente}
+                  proyectoId={contract.proyecto}
+                />
+              </div>
+              <Badge
+                className={
+                  contract.estado === "activo"
+                    ? "bg-green-500/10 text-green-600"
+                    : "bg-muted text-muted-foreground"
+                }
+              >
+                {contract.estado}
+              </Badge>
+            </div>
           </div>
 
           <div className="space-y-2 text-sm">
@@ -287,6 +302,7 @@ export default function ContratosActivos() {
     pago_inicial: Number(r.pago_inicial ?? 0),
     estado: r.estado ?? "activo",
     fecha_de_creacion: r.fecha_de_creacion ?? r.created_at ?? null,
+    contrato_url: r.contrato_url ?? null,
     pagos_registrados: Number(r.pagos_registrados ?? 0),
     valor_restante: Number(
       r.valor_restante ??
@@ -317,6 +333,10 @@ export default function ContratosActivos() {
     cancelados: list.filter((l) => l.estado === "cancelado").length,
     total_restante: list.reduce((s, r) => s + Number(r.valor_restante ?? 0), 0),
   };
+
+  const handleContratoUpdated = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["contratos-activos"] });
+  }, []);
 
   return (
     <div className="p-6 lg:p-8">
@@ -406,6 +426,7 @@ export default function ContratosActivos() {
                 <ContractCard
                   key={c.id}
                   contract={c}
+                  onContratoUpdated={handleContratoUpdated}
                   onClick={() => openContractModal(c)}
                 />
               ))}

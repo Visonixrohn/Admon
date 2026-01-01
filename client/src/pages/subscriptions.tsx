@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   RefreshCcw,
@@ -44,6 +44,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { queryClient } from "@/lib/queryClient";
+import ContratoButton from "@/components/contrato-button";
 import {
   formatCurrency,
   formatDate,
@@ -58,6 +59,9 @@ interface SubscriptionWithClient extends Subscription {
   clientName: string;
   clientEmail?: string | null;
   projectName: string;
+  contrato_url?: string | null;
+  cliente?: string;
+  proyecto?: string;
 }
 
 function monthsBetween(startInput?: string | Date | null, endInput?: Date) {
@@ -80,9 +84,11 @@ function monthsBetween(startInput?: string | Date | null, endInput?: Date) {
 function SubscriptionCard({
   subscription,
   onToggleStatus,
+  onContratoUpdated,
 }: {
   subscription: SubscriptionWithClient;
   onToggleStatus?: (id: string, active: boolean) => void;
+  onContratoUpdated?: () => void;
 }) {
   const daysUntilPayment = subscription.nextPaymentDate
     ? getDaysUntilDue(subscription.nextPaymentDate)
@@ -114,8 +120,16 @@ function SubscriptionCard({
               </p>
             </div>
           </div>
-          {onToggleStatus ? (
-            <div className="ml-auto md:ml-0">
+          <div className="flex items-center gap-2">
+            <ContratoButton
+              suscripcionId={subscription.id}
+              contratoUrl={subscription.contrato_url}
+              onContratoUpdated={onContratoUpdated}
+              tableName="suscripciones"
+              clienteId={subscription.cliente}
+              proyectoId={subscription.proyecto}
+            />
+            {onToggleStatus ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon">
@@ -143,8 +157,8 @@ function SubscriptionCard({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </div>
-          ) : null}
+            ) : null}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6">
@@ -281,12 +295,15 @@ export default function Subscriptions() {
     Array.isArray(rawSubs) ? rawSubs : []
   ).map((r: any) => ({
     id: r.id,
+    cliente: r.cliente,
+    proyecto: r.proyecto,
     clientName: clientsMap[r.cliente] ?? r.cliente ?? "Cliente",
     projectName: projectsMap[r.proyecto] ?? r.proyecto ?? "Proyecto",
     monthlyAmount: Number(r.mensualidad ?? 0),
     startDate: r.fecha_de_creacion ?? r.created_at ?? null,
     lastPaymentDate: r.ultimo_pago ?? null,
     nextPaymentDate: r.proxima_fecha_de_pago ?? null,
+    contrato_url: r.contrato_url ?? null,
     isActive: r.is_active === undefined ? true : Boolean(r.is_active),
   }));
 
@@ -365,6 +382,15 @@ export default function Subscriptions() {
     setDetailOpen(false);
     setSelected(null);
   };
+
+  const handleContratoUpdated = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["suscripciones"] });
+  }, []);
+
+  const handleContratoUpdatedAndClose = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["suscripciones"] });
+    closeDetail();
+  }, []);
 
   const toggleSubscription = async () => {
     if (!selected) return;
@@ -694,6 +720,7 @@ export default function Subscriptions() {
                   <TableHead>Próximo pago</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Activo</TableHead>
+                  <TableHead>Contrato</TableHead>
                   <TableHead>Acción</TableHead>
                 </TableRow>
               </TableHeader>
@@ -759,6 +786,16 @@ export default function Subscriptions() {
                         {s.isActive ? "Activa" : "Pausada"}
                       </Badge>
                     </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <ContratoButton
+                        suscripcionId={s.id}
+                        contratoUrl={s.contrato_url}
+                        onContratoUpdated={handleContratoUpdated}
+                        tableName="suscripciones"
+                        clienteId={s.cliente}
+                        proyectoId={s.proyecto}
+                      />
+                    </TableCell>
                     <TableCell>
                       {/* Mostrar botón Cobrar sólo si está en atraso */}
                       {s.nextPaymentDate
@@ -797,7 +834,10 @@ export default function Subscriptions() {
                 {selected ? (
                   !editMode ? (
                     <div className="space-y-4">
-                      <SubscriptionCard subscription={selected} />
+                      <SubscriptionCard 
+                        subscription={selected} 
+                        onContratoUpdated={handleContratoUpdatedAndClose}
+                      />
                     </div>
                   ) : (
                     <div className="space-y-4 md:space-y-6">
