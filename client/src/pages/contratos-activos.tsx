@@ -105,6 +105,12 @@ export default function ContratosActivos() {
               </span>
             </div>
             <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Pago inicial</span>
+              <span className="font-medium text-blue-600 dark:text-blue-400">
+                {formatCurrency(contract.pago_inicial || 0)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Pagos registrados</span>
               <span>{formatCurrency(contract.pagos_registrados)}</span>
             </div>
