@@ -545,31 +545,45 @@ export default function CobroForm({ open, onOpenChange, onCreated, clienteId, in
           console.error("Error registrando en estado_cuenta:", estErr);
         }
 
-        // Actualizar la suscripción: avanzar al siguiente mes usando dia_de_pago_mensual
+        // Actualizar la suscripción: calcular meses a sumar según el monto pagado
         try {
-          const today = new Date();
-          const diaActual = today.getDate();
-          const mesActual = today.getMonth();
-          const añoActual = today.getFullYear();
+          const mensualidad = Number(selectedSub.mensualidad ?? 0);
+          const montoPagado = Number(amount);
           
-          // Obtener el día de pago mensual (por defecto el día actual si no existe)
-          const diaDePago = selectedSub.dia_de_pago_mensual ?? diaActual;
+          // Calcular cuántos meses corresponden al pago
+          const mesesASumar = mensualidad > 0 ? Math.floor(montoPagado / mensualidad) : 1;
           
-          // Calcular el siguiente mes
-          let siguienteMes = mesActual + 1;
-          let siguienteAño = añoActual;
-          
-          if (siguienteMes > 11) {
-            siguienteMes = 0;
-            siguienteAño += 1;
+          // Obtener la fecha de pago actual de la suscripción
+          let fechaBase: Date;
+          if (selectedSub.proxima_fecha_de_pago) {
+            fechaBase = new Date(selectedSub.proxima_fecha_de_pago);
+          } else {
+            // Si no hay fecha, usar hoy
+            fechaBase = new Date();
           }
           
-          // Obtener el último día del siguiente mes para validar
-          const ultimoDiaDelMes = new Date(siguienteAño, siguienteMes + 1, 0).getDate();
-          const diaValido = Math.min(diaDePago, ultimoDiaDelMes);
+          // Obtener componentes de la fecha base
+          const año = fechaBase.getFullYear();
+          const mes = fechaBase.getMonth();
+          const dia = fechaBase.getDate();
           
-          // Crear la nueva fecha de próximo pago
-          const nuevaFecha = new Date(siguienteAño, siguienteMes, diaValido);
+          // Calcular nuevo año y mes
+          let nuevoMes = mes + mesesASumar;
+          let nuevoAño = año;
+          
+          while (nuevoMes > 11) {
+            nuevoMes -= 12;
+            nuevoAño += 1;
+          }
+          
+          // Obtener el último día del mes destino
+          const ultimoDiaDelMesDestino = new Date(nuevoAño, nuevoMes + 1, 0).getDate();
+          
+          // Usar el día original o el último día del mes si el original no existe
+          const diaFinal = Math.min(dia, ultimoDiaDelMesDestino);
+          
+          // Crear la nueva fecha
+          const nuevaFecha = new Date(nuevoAño, nuevoMes, diaFinal);
           const newProx = nuevaFecha.toISOString();
           
           const { error: upErr } = await supabase

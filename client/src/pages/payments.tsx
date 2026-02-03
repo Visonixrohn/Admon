@@ -11,6 +11,8 @@ import {
   Calendar,
   MoreHorizontal,
   Check,
+  Printer,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -109,9 +111,13 @@ function PaymentStatusBadge({ status }: { status: string }) {
 function PaymentCard({
   payment,
   onMarkPaid,
+  onReprint,
+  onDelete,
 }: {
   payment: PaymentWithClient;
   onMarkPaid: (id: string) => void;
+  onReprint: (payment: PaymentWithClient) => void;
+  onDelete: (payment: PaymentWithClient) => void;
 }) {
   const daysUntil = payment.dueDate ? getDaysUntilDue(payment.dueDate) : NaN;
   const isOverdue = daysUntil < 0 && payment.status !== "pagado";
@@ -159,6 +165,21 @@ function PaymentCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => onReprint(payment)}
+                data-testid="menu-reprint"
+              >
+                <Printer className="h-4 w-4 mr-2" />
+                Reimprimir recibo
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onDelete(payment)}
+                data-testid="menu-delete"
+                className="text-red-600"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Eliminar pago
+              </DropdownMenuItem>
               {payment.status !== "pagado" && (
                 <DropdownMenuItem
                   onClick={() => onMarkPaid(payment.id)}
@@ -302,6 +323,12 @@ export default function Payments() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [activeTab, setActiveTab] = useState("all");
   const { toast } = useToast();
+
+  // Estados para eliminación de pagos
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [paymentToDelete, setPaymentToDelete] = useState<PaymentWithClient | null>(null);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [isDeletingPayment, setIsDeletingPayment] = useState(false);
 
   const { data: payments, isLoading } = useQuery<any[]>({
     queryKey: ["pagos"],
@@ -505,6 +532,128 @@ export default function Payments() {
     }
   }
 
+  // Función para reimprimir recibo
+  async function handleReprintPayment(payment: PaymentWithClient) {
+    await openInvoiceForPayment(payment);
+  }
+
+  // Función para solicitar eliminación de pago
+  function handleDeletePayment(payment: PaymentWithClient) {
+    setPaymentToDelete(payment);
+    setDeletePassword("");
+    setDeleteDialogOpen(true);
+  }
+
+  // Función para confirmar eliminación de pago
+  async function confirmDeletePayment() {
+    if (!paymentToDelete) return;
+
+    // Verificar contraseña contra la clave de configuración
+    try {
+      const { data: configData, error: configError } = await supabase
+        .from("configuracion")
+        .select("clave")
+        .limit(1)
+        .single();
+      
+      if (configError) throw configError;
+      
+      const storedPassword = configData?.clave ?? null;
+      if (!storedPassword) {
+        toast({
+          title: "Error de configuración",
+          description: "No hay contraseña configurada en el sistema",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (deletePassword !== storedPassword) {
+        toast({
+          title: "Contraseña incorrecta",
+          description: "La contraseña ingresada no es válida",
+          variant: "destructive",
+        });
+        return;
+      }
+    } catch (err: any) {
+      console.error("Error verificando contraseña:", err);
+      toast({
+        title: "Error al verificar contraseña",
+        description: err?.message ?? String(err),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsDeletingPayment(true);
+    try {
+      // Eliminar el pago
+      const { error: deleteError } = await supabase
+        .from("pagos")
+        .delete()
+        .eq("id", paymentToDelete.id);
+
+      if (deleteError) throw deleteError;
+
+      // Si es una suscripción, retroceder la fecha de próximo pago
+      if (paymentToDelete.tipo === "suscripcion" && paymentToDelete.referenceId) {
+        try {
+          const { data: susData } = await supabase
+            .from("suscripciones")
+            .select("proxima_fecha_de_pago, mensualidad")
+            .eq("id", paymentToDelete.referenceId)
+            .single();
+
+          if (susData && susData.proxima_fecha_de_pago) {
+            const mensualidad = Number(susData.mensualidad ?? 0);
+            const montoPagado = Number(paymentToDelete.amount);
+            const mesesARestar = mensualidad > 0 ? Math.floor(montoPagado / mensualidad) : 1;
+
+            let fechaActual = new Date(susData.proxima_fecha_de_pago);
+            fechaActual.setMonth(fechaActual.getMonth() - mesesARestar);
+
+            await supabase
+              .from("suscripciones")
+              .update({ proxima_fecha_de_pago: fechaActual.toISOString() })
+              .eq("id", paymentToDelete.referenceId);
+          }
+        } catch (err) {
+          console.error("Error ajustando fecha de suscripción:", err);
+        }
+      }
+
+      // Eliminar del estado_cuenta si existe
+      try {
+        await supabase
+          .from("estado_cuenta")
+          .delete()
+          .eq("cliente_id", paymentToDelete.clientId)
+          .eq("proyecto_id", paymentToDelete.clientId)
+          .eq("monto", Number(paymentToDelete.amount));
+      } catch (err) {
+        console.error("Error eliminando de estado_cuenta:", err);
+      }
+
+      toast({ title: "Pago eliminado exitosamente" });
+      queryClient.invalidateQueries({ queryKey: ["pagos"] });
+      queryClient.invalidateQueries({ queryKey: ["suscripciones"] });
+      queryClient.invalidateQueries({ queryKey: ["contratos"] });
+      setDeleteDialogOpen(false);
+      setPaymentToDelete(null);
+      setDeletePassword("");
+    } catch (err: any) {
+      console.error("Error eliminando pago:", err);
+      toast({
+        title: "Error al eliminar pago",
+        description: err?.message ?? String(err),
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeletingPayment(false);
+    }
+  }
+
   // Normalize query result to an array to avoid runtime errors when the
   // query returns null/string/object (e.g., when no backend is present).
   // Map pagos rows to the UI shape
@@ -683,6 +832,8 @@ export default function Payments() {
                   <PaymentCard
                     payment={payment}
                     onMarkPaid={(id) => markPaidMutation.mutate(id)}
+                    onReprint={handleReprintPayment}
+                    onDelete={handleDeletePayment}
                   />
                 </div>
               ))}
@@ -757,6 +908,82 @@ export default function Payments() {
           </DialogContent>
         </Dialog>
       ) : null}
+
+      {/* Dialog de confirmación de eliminación */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar eliminación de pago</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              ¿Estás seguro de que deseas eliminar este pago?
+            </p>
+            {paymentToDelete && (
+              <div className="border rounded-lg p-4 space-y-2 bg-muted/50">
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium">Cliente:</span>
+                  <span className="text-sm">{paymentToDelete.clientName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium">Proyecto:</span>
+                  <span className="text-sm">{paymentToDelete.projectName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium">Monto:</span>
+                  <span className="text-sm font-bold">
+                    {formatCurrency(Number(paymentToDelete.amount))}
+                  </span>
+                </div>
+                {paymentToDelete.paidDate && (
+                  <div className="flex justify-between">
+                    <span className="text-sm font-medium">Fecha:</span>
+                    <span className="text-sm">
+                      {formatDate(paymentToDelete.paidDate)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">
+                Ingresa la contraseña para confirmar:
+              </label>
+              <Input
+                type="password"
+                placeholder="Contraseña"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && deletePassword) {
+                    confirmDeletePayment();
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setPaymentToDelete(null);
+                setDeletePassword("");
+              }}
+              disabled={isDeletingPayment}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDeletePayment}
+              disabled={!deletePassword || isDeletingPayment}
+            >
+              {isDeletingPayment ? "Eliminando..." : "Eliminar pago"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
