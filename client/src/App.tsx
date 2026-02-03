@@ -64,6 +64,7 @@ function App() {
   const [deviceAuthorized, setDeviceAuthorized] = useState<boolean | null>(null);
   const [deviceFingerprint, setDeviceFingerprint] = useState<string>("");
   const [checkingDevice, setCheckingDevice] = useState(true);
+  const { toast } = useToast();
 
   // Generar fingerprint y verificar autorización del dispositivo
   useEffect(() => {
@@ -158,7 +159,11 @@ function App() {
 
   // Si no está autenticado, mostrar login
   if (!authed) return <Login onSuccess={() => setAuthed(true)} isLoggingOut={isLoggingOut} />;
-  const { toast } = useToast();
+  
+  const sidebarStyle = {
+    "--sidebar-width": "16rem",
+    "--sidebar-width-icon": "3.5rem",
+  };
 
   useEffect(() => {
     function onSWUpdated(e: any) {
@@ -188,11 +193,6 @@ function App() {
     window.addEventListener("swUpdated", onSWUpdated as EventListener);
     return () => window.removeEventListener("swUpdated", onSWUpdated as EventListener);
   }, [toast]);
-  
-  const sidebarStyle = {
-    "--sidebar-width": "16rem",
-    "--sidebar-width-icon": "3.5rem",
-  };
 
   return (
     <QueryClientProvider client={queryClient}>
