@@ -132,17 +132,17 @@ function PaymentCard({
       }`}
       data-testid={`card-payment-${payment.id}`}
     >
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10 flex-shrink-0">
-              <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
+      <CardContent className="p-4 md:p-6">
+        <div className="flex items-start justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+            <Avatar className="h-9 w-9 md:h-10 md:w-10 flex-shrink-0">
+              <AvatarFallback className="bg-primary/10 text-primary text-xs md:text-sm font-medium">
                 {getInitials(payment.clientName)}
               </AvatarFallback>
             </Avatar>
-            <div className="min-w-0">
-              <p className="font-semibold truncate">{payment.clientName}</p>
-              <p className="text-sm text-muted-foreground truncate">
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-sm md:text-base truncate">{payment.clientName}</p>
+              <p className="text-xs md:text-sm text-muted-foreground truncate">
                 {payment.projectName}
               </p>
               {payment.tipo && (
@@ -159,6 +159,7 @@ function PaymentCard({
               <Button
                 variant="ghost"
                 size="icon"
+                className="h-8 w-8 md:h-10 md:w-10 flex-shrink-0"
                 onClick={(e) => e.stopPropagation()}
               >
                 <MoreHorizontal className="h-4 w-4" />
@@ -193,34 +194,34 @@ function PaymentCard({
           </DropdownMenu>
         </div>
 
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-sm text-muted-foreground">Monto:</span>
-            <span className="text-lg font-bold">
+        <div className="space-y-2 md:space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs md:text-sm text-muted-foreground">Monto:</span>
+            <span className="text-base md:text-lg font-bold truncate">
               {formatCurrency(Number(payment.amount))}
             </span>
           </div>
 
           {payment.paymentNumber && payment.paymentNumber > 1 && (
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-sm text-muted-foreground">Cuota:</span>
-              <span className="text-sm">#{payment.paymentNumber}</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs md:text-sm text-muted-foreground">Cuota:</span>
+              <span className="text-xs md:text-sm">#{payment.paymentNumber}</span>
             </div>
           )}
 
           {payment.paidDate && (
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-sm text-muted-foreground">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs md:text-sm text-muted-foreground">
                 Fecha de pago:
               </span>
-              <span className="text-sm text-green-600 dark:text-green-400">
+              <span className="text-xs md:text-sm text-green-600 dark:text-green-400 truncate">
                 {formatDate(payment.paidDate)}
               </span>
             </div>
           )}
         </div>
 
-        <div className="mt-4 pt-4 border-t border-border flex items-center justify-between gap-4">
+        <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-border flex items-center justify-between gap-2">
           <PaymentStatusBadge status={payment.status} />
           {payment.status === "pendiente" && (
             <span

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'admon-pwa-v1';
+const CACHE_NAME = 'admon-pwa-v2';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
