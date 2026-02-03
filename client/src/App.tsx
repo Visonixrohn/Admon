@@ -119,6 +119,36 @@ function App() {
     }
   }, []);
 
+  // Listener para actualizaciones del Service Worker
+  useEffect(() => {
+    function onSWUpdated(e: any) {
+      const reg = e?.detail?.registration;
+      const action = () => {
+        if (reg && reg.waiting) {
+          // tell SW to skip waiting
+          reg.waiting.postMessage({ type: "SKIP_WAITING" });
+        }
+      };
+
+      toast({
+        title: "Actualización disponible",
+        description: "Hay una nueva versión disponible. Haz clic para actualizar.",
+        action: (
+          <Button
+            onClick={() => {
+              action();
+            }}
+          >
+            Actualizar
+          </Button>
+        ),
+      });
+    }
+
+    window.addEventListener("swUpdated", onSWUpdated as EventListener);
+    return () => window.removeEventListener("swUpdated", onSWUpdated as EventListener);
+  }, [toast]);
+
   const handleLogout = () => {
     setIsLoggingOut(true);
     setTimeout(() => {
@@ -164,35 +194,6 @@ function App() {
     "--sidebar-width": "16rem",
     "--sidebar-width-icon": "3.5rem",
   };
-
-  useEffect(() => {
-    function onSWUpdated(e: any) {
-      const reg = e?.detail?.registration;
-      const action = () => {
-        if (reg && reg.waiting) {
-          // tell SW to skip waiting
-          reg.waiting.postMessage({ type: "SKIP_WAITING" });
-        }
-      };
-
-      toast({
-        title: "Actualización disponible",
-        description: "Hay una nueva versión disponible. Haz clic para actualizar.",
-        action: (
-          <Button
-            onClick={() => {
-              action();
-            }}
-          >
-            Actualizar
-          </Button>
-        ),
-      });
-    }
-
-    window.addEventListener("swUpdated", onSWUpdated as EventListener);
-    return () => window.removeEventListener("swUpdated", onSWUpdated as EventListener);
-  }, [toast]);
 
   return (
     <QueryClientProvider client={queryClient}>
