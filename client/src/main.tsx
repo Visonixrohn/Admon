@@ -16,6 +16,36 @@ if (
       .register(swUrl, { scope: "/" })
       .then((reg) => {
         console.log("Service worker registered:", reg.scope);
+
+        // If there's an updated SW waiting, notify the app
+        function notifyUpdateAvailable() {
+          window.dispatchEvent(
+            new CustomEvent("swUpdated", { detail: { registration: reg } })
+          );
+        }
+
+        if (reg.waiting) {
+          notifyUpdateAvailable();
+        }
+
+        reg.addEventListener("updatefound", () => {
+          const installing = reg.installing;
+          if (!installing) return;
+          installing.addEventListener("statechange", () => {
+            if (installing.state === "installed") {
+              // A new SW is installed and waiting
+              if (navigator.serviceWorker.controller) {
+                notifyUpdateAvailable();
+              }
+            }
+          });
+        });
+
+        // Listen for controlling SW changing (to reload page if needed)
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          console.log("Controller changed - reloading page");
+          window.location.reload();
+        });
       })
       .catch((err) => {
         console.warn("Service worker registration failed:", err);

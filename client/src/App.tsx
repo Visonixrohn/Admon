@@ -28,6 +28,8 @@ import Login from "@/pages/login";
 import AccesoDenegado from "@/pages/acceso-denegado";
 import Dispositivos from "@/pages/dispositivos";
 import React, { useEffect, useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 import { generateDeviceFingerprint } from "@/lib/deviceFingerprint";
 import { supabase } from "@/lib/supabase";
 
@@ -156,6 +158,36 @@ function App() {
 
   // Si no está autenticado, mostrar login
   if (!authed) return <Login onSuccess={() => setAuthed(true)} isLoggingOut={isLoggingOut} />;
+  const { toast } = useToast();
+
+  useEffect(() => {
+    function onSWUpdated(e: any) {
+      const reg = e?.detail?.registration;
+      const action = () => {
+        if (reg && reg.waiting) {
+          // tell SW to skip waiting
+          reg.waiting.postMessage({ type: "SKIP_WAITING" });
+        }
+      };
+
+      toast({
+        title: "Actualización disponible",
+        description: "Hay una nueva versión disponible. Haz clic para actualizar.",
+        action: (
+          <Button
+            onClick={() => {
+              action();
+            }}
+          >
+            Actualizar
+          </Button>
+        ),
+      });
+    }
+
+    window.addEventListener("swUpdated", onSWUpdated as EventListener);
+    return () => window.removeEventListener("swUpdated", onSWUpdated as EventListener);
+  }, [toast]);
   
   const sidebarStyle = {
     "--sidebar-width": "16rem",

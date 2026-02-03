@@ -24,6 +24,15 @@ self.addEventListener('activate', (event) => {
     )
   );
   self.clients.claim();
+  // Notify clients that a new service worker has taken control (useful to prompt reload)
+  event.waitUntil(
+    (async () => {
+      const allClients = await self.clients.matchAll({ includeUncontrolled: true });
+      for (const client of allClients) {
+        client.postMessage({ type: 'NEW_VERSION_AVAILABLE' });
+      }
+    })()
+  );
 });
 
 self.addEventListener('fetch', (event) => {
@@ -53,4 +62,13 @@ self.addEventListener('fetch', (event) => {
         .catch(() => caches.match('/index.html'));
     })
   );
+});
+
+// Listen to messages from the page (e.g., to skipWaiting)
+self.addEventListener('message', (event) => {
+  if (!event.data) return;
+  const { type } = event.data;
+  if (type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
