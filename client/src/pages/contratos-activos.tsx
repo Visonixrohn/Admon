@@ -58,23 +58,23 @@ export default function ContratosActivos() {
         }`}
       >
         <CardContent className="p-4">
-          <div className="flex items-start justify-between gap-4 mb-3">
-            <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10">
-                <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
+          <div className="flex items-start justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+              <Avatar className="h-9 w-9 md:h-10 md:w-10 flex-shrink-0">
+                <AvatarFallback className="bg-primary/10 text-primary text-xs md:text-sm font-medium">
                   {getInitials(
                     String(contract.clienteName ?? contract.cliente)
                   )}
                 </AvatarFallback>
               </Avatar>
-              <div className="min-w-0">
-                <p className="font-semibold truncate">{contract.clienteName}</p>
-                <p className="text-sm text-muted-foreground truncate">
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-sm md:text-base truncate">{contract.clienteName}</p>
+                <p className="text-xs md:text-sm text-muted-foreground truncate">
                   {contract.projectName}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <div onClick={(e) => e.stopPropagation()}>
                 <ContratoButton
                   contratoId={contract.id}
@@ -97,40 +97,40 @@ export default function ContratosActivos() {
             </div>
           </div>
 
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center justify-between">
+          <div className="space-y-1.5 md:space-y-2 text-xs md:text-sm">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-muted-foreground">Monto total</span>
-              <span className="font-semibold">
+              <span className="font-semibold truncate">
                 {formatCurrency(contract.monto_total)}
               </span>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-muted-foreground">Pago inicial</span>
-              <span className="font-medium text-blue-600 dark:text-blue-400">
+              <span className="font-medium text-blue-600 dark:text-blue-400 truncate">
                 {formatCurrency(contract.pago_inicial || 0)}
               </span>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-muted-foreground">Pagos registrados</span>
-              <span>{formatCurrency(contract.pagos_registrados)}</span>
+              <span className="truncate">{formatCurrency(contract.pagos_registrados)}</span>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-muted-foreground">Valor restante</span>
-              <span className="font-semibold text-primary">
+              <span className="font-semibold text-primary truncate">
                 {formatCurrency(contract.valor_restante)}
               </span>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-muted-foreground">Creado</span>
-              <span className="text-sm">
+              <span className="truncate">
                 {contract.fecha_de_creacion
                   ? formatDate(contract.fecha_de_creacion)
                   : "-"}
               </span>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-muted-foreground">Próximo pago</span>
-              <span className="text-sm">
+              <span className="truncate">
                 {contract.proximo_pago
                   ? formatDate(contract.proximo_pago)
                   : "-"}

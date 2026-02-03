@@ -199,13 +199,13 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="light" storageKey="visonixro-theme">
         <TooltipProvider>
-          <SidebarProvider style={sidebarStyle as React.CSSProperties}>
+          <SidebarProvider style={sidebarStyle as React.CSSProperties} side="right">
             <div className={`flex h-screen w-full transition-opacity duration-500 ${isLoggingOut ? 'opacity-0' : 'opacity-100'}`}>
               <AppSidebar onLogout={handleLogout} />
               <div className="flex flex-col flex-1 overflow-hidden">
                 <header className="flex items-center justify-between gap-4 px-4 py-3 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50">
-                  <SidebarTrigger data-testid="button-sidebar-toggle" />
                   <ThemeToggle />
+                  <SidebarTrigger data-testid="button-sidebar-toggle" />
                 </header>
                 <main className="flex-1 overflow-auto">
                   <Router />
