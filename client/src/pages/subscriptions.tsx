@@ -846,7 +846,8 @@ export default function Subscriptions() {
         </div>
       ) : filteredSubscriptions && filteredSubscriptions.length > 0 ? (
         <>
-          <div className="mt-4">
+          {/* Vista de tabla para desktop */}
+          <div className="mt-4 hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -988,6 +989,155 @@ export default function Subscriptions() {
                 ))}
               </TableBody>
             </Table>
+          </div>
+
+          {/* Vista de cards para móviles */}
+          <div className="mt-4 md:hidden grid grid-cols-1 gap-4">
+            {filteredSubscriptions.map((s) => {
+              const today = new Date();
+              const next = s.nextPaymentDate
+                ? new Date(s.nextPaymentDate as string)
+                : null;
+              today.setHours(0, 0, 0, 0);
+              if (next) next.setHours(0, 0, 0, 0);
+              const enAtraso = next && today > next;
+              const diasAtraso = next
+                ? Math.floor(
+                    (today.getTime() - next.getTime()) / (1000 * 60 * 60 * 24)
+                  )
+                : 0;
+
+              let yaEnviadoHoy = false;
+              if (s.ultimo_recordatorio_cobro) {
+                const ultimoRecordatorio = new Date(
+                  s.ultimo_recordatorio_cobro
+                );
+                ultimoRecordatorio.setHours(0, 0, 0, 0);
+                yaEnviadoHoy = ultimoRecordatorio.getTime() === today.getTime();
+              }
+
+              return (
+                <Card
+                  key={s.id}
+                  className="cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => openDetail(s)}
+                >
+                  <CardContent className="p-4 space-y-3">
+                    {/* Encabezado con cliente y estado */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-base truncate">
+                          {s.clientName}
+                        </h3>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {s.projectName}
+                        </p>
+                      </div>
+                      <Badge
+                        variant="secondary"
+                        className={
+                          s.isActive
+                            ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                            : "bg-muted text-muted-foreground"
+                        }
+                      >
+                        {s.isActive ? "Activa" : "Pausada"}
+                      </Badge>
+                    </div>
+
+                    {/* Información principal */}
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-muted-foreground text-xs">
+                          Mensualidad
+                        </p>
+                        <p className="font-semibold">
+                          {formatCurrency(Number(s.monthlyAmount ?? 0))}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs">
+                          Próximo pago
+                        </p>
+                        <p
+                          className={`font-medium ${
+                            enAtraso ? "text-red-600" : ""
+                          }`}
+                        >
+                          {s.nextPaymentDate
+                            ? formatDate(s.nextPaymentDate)
+                            : "-"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs">Estado</p>
+                        {s.nextPaymentDate ? (
+                          enAtraso ? (
+                            <span className="text-red-600 font-semibold text-sm">
+                              ATRASO
+                            </span>
+                          ) : (
+                            <span className="text-green-600 font-semibold text-sm">
+                              AL DÍA
+                            </span>
+                          )
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs">
+                          Meses transcurridos
+                        </p>
+                        <p className="font-medium">
+                          {s.startDate
+                            ? `${monthsBetween(s.startDate)} meses`
+                            : "-"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Botones de acción */}
+                    <div className="flex items-center gap-2 pt-2 border-t">
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <ContratoButton
+                          suscripcionId={s.id}
+                          contratoUrl={s.contrato_url}
+                          onContratoUpdated={handleContratoUpdated}
+                          tableName="suscripciones"
+                          clienteId={s.cliente}
+                          proyectoId={s.proyecto}
+                        />
+                      </div>
+                      {s.nextPaymentDate && s.isActive && diasAtraso >= 2 && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="ml-auto"
+                        >
+                          {yaEnviadoHoy ? (
+                            <span className="text-xs text-muted-foreground">
+                              Enviado hoy
+                            </span>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="default"
+                              disabled={enviandoRecordatorio[s.id]}
+                              onClick={() => enviarRecordatorioCobro(s)}
+                            >
+                              <Send className="h-3 w-3 mr-1" />
+                              {enviandoRecordatorio[s.id]
+                                ? "Enviando..."
+                                : "Recordatorio"}
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
           <Dialog
             open={detailOpen}
