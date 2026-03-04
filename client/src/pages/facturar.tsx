@@ -388,6 +388,7 @@ export default function Facturar() {
   const [noRegistroSag, setNoRegistroSag] = useState("");
   const [lineas, setLineas] = useState<LineaItem[]>([]);
   const [showSarModal, setShowSarModal] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [printData, setPrintData] = useState<any>(null);
   const [showPrint, setShowPrint] = useState(false);
 
