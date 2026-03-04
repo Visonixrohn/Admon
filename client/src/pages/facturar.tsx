@@ -340,6 +340,7 @@ function buildFacturaHtml(
   factura: any,
   dfact: any,
   lineas: LineaItem[],
+  logoSrc: string,
 ): string {
   const totales = calcularTotales(lineas);
   const filas = lineas
@@ -392,7 +393,7 @@ function buildFacturaHtml(
 <body>
 <div class="page">
   <div style="text-align:center;margin-bottom:16px">
-    <img src="/vsr.png" alt="VSR" style="width:80px;height:80px;object-fit:contain;display:block;margin:0 auto" />
+    <img src="${logoSrc}" alt="VSR" style="width:80px;height:80px;object-fit:contain;display:block;margin:0 auto" />
     <p style="font-weight:bold;font-size:14px;margin-top:4px;letter-spacing:1px;text-transform:uppercase">ESTUDIO DIGITAL VISONIXRO</p>
   </div>
   <div style="display:flex;justify-content:space-between;margin-bottom:20px">
@@ -629,9 +630,20 @@ export default function Facturar() {
     `,
   });
 
-  const handleMobilePrint = useCallback(() => {
+  const handleMobilePrint = useCallback(async () => {
     if (!printData || !dfact) return;
-    const html = buildFacturaHtml(printData, dfact, printData.lineas ?? []);
+    // Convertir el logo a base64 para que se vea en la pestaña blob:
+    let logoSrc = "/vsr.png";
+    try {
+      const resp = await fetch("/vsr.png");
+      const buf = await resp.arrayBuffer();
+      const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+      const mime = resp.headers.get("content-type") || "image/png";
+      logoSrc = `data:${mime};base64,${b64}`;
+    } catch {
+      // si falla, deja la ruta relativa como fallback
+    }
+    const html = buildFacturaHtml(printData, dfact, printData.lineas ?? [], logoSrc);
     const blob = new Blob([html], { type: "text/html;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     window.open(url, "_blank");
