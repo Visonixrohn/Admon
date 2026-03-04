@@ -86,6 +86,7 @@ export default function Configuracion() {
   const [fPrefEst, setFPrefEst] = useState("000");
   const [fPrefPE, setFPrefPE] = useState("001");
   const [fPrefTD, setFPrefTD] = useState("01");
+  const [fCorrelativoActual, setFCorrelativoActual] = useState("1");
 
   useEffect(() => {
     if (dfact) {
@@ -103,6 +104,7 @@ export default function Configuracion() {
       setFPrefEst(dfact.prefijo_establecimiento ?? "000");
       setFPrefPE(dfact.prefijo_punto_emision ?? "001");
       setFPrefTD(dfact.prefijo_tipo_doc ?? "01");
+      setFCorrelativoActual(String(dfact.correlativo_actual ?? "1"));
     }
   }, [dfact]);
 
@@ -121,6 +123,7 @@ export default function Configuracion() {
         prefijo_establecimiento: fPrefEst,
         prefijo_punto_emision: fPrefPE,
         prefijo_tipo_doc: fPrefTD,
+        correlativo_actual: parseInt(fCorrelativoActual, 10) || 1,
         updated_at: new Date().toISOString(),
       } as any;
 
@@ -478,11 +481,27 @@ export default function Configuracion() {
                   />
                 </div>
               </div>
+              <div className="pt-1">
+                <label className="block text-sm font-medium mb-1">
+                  Correlativo actual (próximo número a emitir)
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={fCorrelativoActual}
+                  onChange={(e) => setFCorrelativoActual(e.target.value)}
+                  className="font-mono w-full sm:w-48"
+                  placeholder="1"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Modifica este valor solo si necesitas ajustar la secuencia (ej. después de anular facturas o al migrar datos).
+                </p>
+              </div>
               <p className="text-xs text-muted-foreground">
-                Ejemplo de factura:{" "}
+                Ejemplo de próxima factura:{" "}
                 <span className="font-mono font-semibold">
                   {fPrefEst || "000"}-{fPrefPE || "001"}-{fPrefTD || "01"}
-                  -00000001
+                  -{String(parseInt(fCorrelativoActual, 10) || 1).padStart(8, "0")}
                 </span>
               </p>
             </div>
