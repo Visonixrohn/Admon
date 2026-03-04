@@ -37,6 +37,7 @@ import {
   FileText,
   Receipt,
   RefreshCw,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
 
@@ -223,14 +224,14 @@ function PrintFactura({
       >
         <thead>
           <tr style={{ borderBottom: "2px solid #000" }}>
-            <th style={{ textAlign: "left", paddingBottom: "4px" }}>
+            <th style={{ textAlign: "left", paddingBottom: "4px", width: "38%" }}>
               Descripción
             </th>
-            <th style={{ textAlign: "right" }}>Cant.</th>
-            <th style={{ textAlign: "right" }}>Precio Unit.</th>
-            <th style={{ textAlign: "right" }}>Desc. y Rebajas</th>
-            <th style={{ textAlign: "right" }}>Gravamen</th>
-            <th style={{ textAlign: "right" }}>Subtotal</th>
+            <th style={{ textAlign: "right", width: "7%" }}>Cant.</th>
+            <th style={{ textAlign: "right", width: "13%" }}>Precio Unit.</th>
+            <th style={{ textAlign: "right", width: "11%" }}>Desc.</th>
+            <th style={{ textAlign: "right", width: "13%" }}>Gravamen</th>
+            <th style={{ textAlign: "right", width: "13%" }}>Subtotal</th>
           </tr>
         </thead>
         <tbody>
@@ -238,16 +239,16 @@ function PrintFactura({
             const { sub } = calcularLinea(l);
             return (
               <tr key={l.id} style={{ borderBottom: "1px solid #ddd" }}>
-                <td style={{ padding: "4px 0" }}>{l.descripcion}</td>
-                <td style={{ textAlign: "right" }}>{l.cantidad}</td>
-                <td style={{ textAlign: "right" }}>
+                <td style={{ padding: "4px 6px 4px 0", wordBreak: "break-word", fontSize: "11px" }}>{l.descripcion}</td>
+                <td style={{ textAlign: "right", fontSize: "11px" }}>{l.cantidad}</td>
+                <td style={{ textAlign: "right", fontSize: "11px" }}>
                   {l.precioUnitario.toFixed(2)}
                 </td>
-                <td style={{ textAlign: "right" }}>{l.descuento.toFixed(2)}</td>
-                <td style={{ textAlign: "right" }}>
+                <td style={{ textAlign: "right", fontSize: "11px" }}>{l.descuento.toFixed(2)}</td>
+                <td style={{ textAlign: "right", fontSize: "11px" }}>
                   {LABEL_GRAVAMEN[l.tipoGravamen]}
                 </td>
-                <td style={{ textAlign: "right" }}>{sub.toFixed(2)}</td>
+                <td style={{ textAlign: "right", fontSize: "11px" }}>{sub.toFixed(2)}</td>
               </tr>
             );
           })}
@@ -385,17 +386,8 @@ export default function Facturar() {
   const [noOrdenExenta, setNoOrdenExenta] = useState("");
   const [noConstanciaExonerado, setNoConstanciaExonerado] = useState("");
   const [noRegistroSag, setNoRegistroSag] = useState("");
-  const [lineas, setLineas] = useState<LineaItem[]>([
-    {
-      id: uid(),
-      descripcion: "",
-      cantidad: 1,
-      precioUnitario: 0,
-      descuento: 0,
-      tipoGravamen: "gravado_15",
-    },
-  ]);
-  const [saving, setSaving] = useState(false);
+  const [lineas, setLineas] = useState<LineaItem[]>([]);
+  const [showSarModal, setShowSarModal] = useState(false);
   const [printData, setPrintData] = useState<any>(null);
   const [showPrint, setShowPrint] = useState(false);
 
@@ -838,43 +830,21 @@ export default function Facturar() {
             </CardContent>
           </Card>
 
-          {/* Notas SAR */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">
-                Campos SAR (opcionales)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <label className="text-sm font-medium mb-1 block">
-                  No. de Orden de Compra Exenta
-                </label>
-                <Input
-                  value={noOrdenExenta}
-                  onChange={(e) => setNoOrdenExenta(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-1 block">
-                  No. de Constancia de Registro Exonerado
-                </label>
-                <Input
-                  value={noConstanciaExonerado}
-                  onChange={(e) => setNoConstanciaExonerado(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-1 block">
-                  No. de Registro de la SAG
-                </label>
-                <Input
-                  value={noRegistroSag}
-                  onChange={(e) => setNoRegistroSag(e.target.value)}
-                />
-              </div>
-            </CardContent>
-          </Card>
+          {/* Campos SAR (opcionales) — botón interruptor */}
+          <div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => setShowSarModal(true)}
+            >
+              <SlidersHorizontal className="w-4 h-4 mr-2" />
+              Campos SAR (opcionales)
+              {(noOrdenExenta || noConstanciaExonerado || noRegistroSag) && (
+                <span className="ml-2 w-2 h-2 rounded-full bg-primary inline-block" />
+              )}
+            </Button>
+          </div>
         </div>
 
         {/* ── Resumen derecha ── */}
@@ -1185,6 +1155,52 @@ export default function Facturar() {
                 lineas={printData.lineas ?? []}
               />
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal Campos SAR ── */}
+      <Dialog open={showSarModal} onOpenChange={setShowSarModal}>
+        <DialogContent className="w-[95vw] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <SlidersHorizontal className="w-4 h-4" /> Campos SAR (opcionales)
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="text-sm font-medium mb-1 block">
+                No. de Orden de Compra Exenta
+              </label>
+              <Input
+                value={noOrdenExenta}
+                onChange={(e) => setNoOrdenExenta(e.target.value)}
+                placeholder="Dejar vacío si no aplica"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">
+                No. de Constancia de Registro Exonerado
+              </label>
+              <Input
+                value={noConstanciaExonerado}
+                onChange={(e) => setNoConstanciaExonerado(e.target.value)}
+                placeholder="Dejar vacío si no aplica"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">
+                No. de Registro de la SAG
+              </label>
+              <Input
+                value={noRegistroSag}
+                onChange={(e) => setNoRegistroSag(e.target.value)}
+                placeholder="Dejar vacío si no aplica"
+              />
+            </div>
+            <div className="flex justify-end pt-2">
+              <Button size="sm" onClick={() => setShowSarModal(false)}>Listo</Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
