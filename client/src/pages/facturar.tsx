@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { queryClient } from "@/lib/queryClient";
@@ -150,18 +151,20 @@ function PrintFactura({
   return (
     <div
       style={{
-        width: "794px",
-        minHeight: "1123px",
+        width: "816px",
+        minHeight: "1056px",
         margin: "0 auto",
         background: "white",
-        padding: "40px",
+        padding: "36px 40px 28px 40px",
         fontFamily: "Arial, Helvetica, sans-serif",
         fontSize: "12px",
         color: "#000",
-        position: "relative",
         boxSizing: "border-box",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
+      <style>{`@page { size: letter portrait; margin: 10mm 12mm 10mm 12mm; }`}</style>
       {/* Logo y nombre — centrado, arriba de todo */}
       <div style={{ textAlign: "center", marginBottom: "20px" }}>
         <img
@@ -299,7 +302,7 @@ function PrintFactura({
       </div>
 
       {/* Notas SAR */}
-      <div style={{ marginTop: "32px", fontSize: "11px" }}>
+      <div style={{ marginTop: "24px", fontSize: "11px" }}>
         <p>No. de Orden de Compra Exenta: {factura.noOrdenExenta || "—"}</p>
         <p>
           No. de Constancia de registro exonerado:{" "}
@@ -308,15 +311,15 @@ function PrintFactura({
         <p>No. de registro de la SAG: {factura.noRegistroSag || "—"}</p>
       </div>
 
-      {/* CAI y Rango */}
+      {/* Spacer empuja el pie hacia abajo */}
+      <div style={{ flex: 1 }} />
+
+      {/* CAI y Rango — pie de página en flujo normal (no absolute) */}
       <div
         style={{
-          position: "absolute",
-          bottom: "40px",
-          left: "40px",
-          right: "40px",
           borderTop: "1px solid #ccc",
           paddingTop: "8px",
+          marginTop: "16px",
           fontSize: "10px",
           color: "#555",
         }}
@@ -332,9 +335,130 @@ function PrintFactura({
   );
 }
 
+// ─── Genera HTML standalone para imprimir en móvil ───────────────────────────
+function buildFacturaHtml(
+  factura: any,
+  dfact: any,
+  lineas: LineaItem[],
+): string {
+  const totales = calcularTotales(lineas);
+  const filas = lineas
+    .map((l) => {
+      const { sub } = calcularLinea(l);
+      return `<tr style="border-bottom:1px solid #ddd">
+        <td style="padding:4px 6px 4px 0;font-size:11px;word-break:break-word">${l.descripcion}</td>
+        <td style="text-align:right;font-size:11px">${l.cantidad}</td>
+        <td style="text-align:right;font-size:11px">${l.precioUnitario.toFixed(2)}</td>
+        <td style="text-align:right;font-size:11px">${l.descuento.toFixed(2)}</td>
+        <td style="text-align:right;font-size:11px">${LABEL_GRAVAMEN[l.tipoGravamen]}</td>
+        <td style="text-align:right;font-size:11px">${sub.toFixed(2)}</td>
+      </tr>`;
+    })
+    .join("");
+
+  const totalesRows = [
+    ["Subtotal", totales.subtotal],
+    ["Valores Exentos", totales.exentos],
+    ["Valores Exonerados", totales.exonerados],
+    ["Valores Alícuota Tasa Cero", totales.tasaCero],
+    ["Monto Gravable ISV 15%", totales.grav15],
+    ["ISV 15%", totales.isv15],
+    ["Monto Gravable ISV 18%", totales.grav18],
+    ["ISV 18%", totales.isv18],
+  ]
+    .map(
+      ([lbl, val]) =>
+        `<tr><td style="padding:2px 8px">${lbl}</td><td style="text-align:right;padding:2px 0">L ${(val as number).toFixed(2)}</td></tr>`,
+    )
+    .join("");
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Factura ${factura.numero}</title>
+  <style>
+    @page { size: letter portrait; margin: 10mm 12mm 10mm 12mm; }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #000; margin: 0; padding: 0; }
+    .page { width: 100%; min-height: 100vh; padding: 24px; display: flex; flex-direction: column; }
+    table { border-collapse: collapse; }
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <div style="text-align:center;margin-bottom:16px">
+    <img src="/vsr.png" alt="VSR" style="width:80px;height:80px;object-fit:contain;display:block;margin:0 auto" />
+    <p style="font-weight:bold;font-size:14px;margin-top:4px;letter-spacing:1px;text-transform:uppercase">ESTUDIO DIGITAL VISONIXRO</p>
+  </div>
+  <div style="display:flex;justify-content:space-between;margin-bottom:20px">
+    <div style="max-width:48%">
+      <p style="font-weight:bold;font-size:11px">CLIENTE</p>
+      <p>RTN: ${factura.clienteRtn || "—"}</p>
+      <p>Nombre: ${factura.clienteNombre}</p>
+      <p>Dirección: ${factura.clienteDireccion || "—"}</p>
+      <p style="margin-top:6px">Fecha Emisión: ${new Date().toLocaleDateString("es-HN")}</p>
+      <p>No. Documento: ${factura.numero}</p>
+    </div>
+    <div style="text-align:right;max-width:48%">
+      <p style="font-size:20px;font-weight:bold">FACTURA</p>
+      <p style="font-weight:bold">${dfact?.nombre || ""}</p>
+      <p style="font-size:11px">${dfact?.direccion || ""}</p>
+      <p>RTN: ${dfact?.rtn || ""}</p>
+      <p>Teléfono: ${dfact?.telefono || ""}</p>
+      <p>Email: ${dfact?.email || ""}</p>
+    </div>
+  </div>
+  <hr />
+  <table style="width:100%;margin-top:14px">
+    <thead>
+      <tr style="border-bottom:2px solid #000">
+        <th style="text-align:left;padding-bottom:4px;width:38%">Descripción</th>
+        <th style="text-align:right;width:7%">Cant.</th>
+        <th style="text-align:right;width:13%">Precio Unit.</th>
+        <th style="text-align:right;width:11%">Desc.</th>
+        <th style="text-align:right;width:13%">Gravamen</th>
+        <th style="text-align:right;width:13%">Subtotal</th>
+      </tr>
+    </thead>
+    <tbody>${filas}</tbody>
+  </table>
+  <div style="display:flex;justify-content:flex-end;margin-top:20px">
+    <table style="width:320px">
+      <tbody>
+        ${totalesRows}
+        <tr style="border-top:2px solid #000;font-weight:bold;font-size:13px">
+          <td style="padding:4px 8px">Total L</td>
+          <td style="text-align:right">L ${totales.total.toFixed(2)}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div style="margin-top:20px;font-size:11px">
+    <p>No. de Orden de Compra Exenta: ${factura.noOrdenExenta || "—"}</p>
+    <p>No. de Constancia de registro exonerado: ${factura.noConstanciaExonerado || "—"}</p>
+    <p>No. de registro de la SAG: ${factura.noRegistroSag || "—"}</p>
+  </div>
+  <div style="flex:1"></div>
+  <div style="border-top:1px solid #ccc;padding-top:8px;margin-top:14px;font-size:10px;color:#555">
+    <p>CAI: ${dfact?.cai || "—"}</p>
+    <p>Rango Autorizado: ${dfact?.rango_inicio || "—"} al ${dfact?.rango_fin || "—"}</p>
+    <p>Fecha Límite de Emisión: ${dfact?.fecha_limite || "—"}</p>
+  </div>
+</div>
+<script>window.onload=function(){window.print();}</script>
+</body>
+</html>`;
+}
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 export default function Facturar() {
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const printRef = useRef<HTMLDivElement>(null);
 
   // ── Datos de facturación (SAR)
@@ -497,7 +621,22 @@ export default function Facturar() {
   // ── Guardar e imprimir
   const handlePrint = useReactToPrint({
     contentRef: printRef,
+    pageStyle: `
+      @page { size: letter portrait; margin: 10mm 12mm 10mm 12mm; }
+      @media print {
+        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      }
+    `,
   });
+
+  const handleMobilePrint = useCallback(() => {
+    if (!printData || !dfact) return;
+    const html = buildFacturaHtml(printData, dfact, printData.lineas ?? []);
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }, [printData, dfact]);
 
   async function emitirFactura() {
     if (!dfact) {
@@ -1144,18 +1283,43 @@ export default function Facturar() {
             </DialogTitle>
           </DialogHeader>
           <div className="flex justify-end mb-2">
-            <Button size="sm" onClick={() => handlePrint()}>
-              <Printer className="w-4 h-4 mr-2" /> Imprimir
-            </Button>
-          </div>
-          <div ref={printRef}>
-            {printData && dfact && (
-              <PrintFactura
-                factura={printData}
-                dfact={dfact}
-                lineas={printData.lineas ?? []}
-              />
+            {isMobile ? (
+              <Button size="sm" onClick={handleMobilePrint}>
+                <Printer className="w-4 h-4 mr-2" /> Abrir para imprimir
+              </Button>
+            ) : (
+              <Button size="sm" onClick={() => handlePrint()}>
+                <Printer className="w-4 h-4 mr-2" /> Imprimir
+              </Button>
             )}
+          </div>
+          {/* Vista previa escalable: en móvil se escala para caber en pantalla */}
+          <div
+            className="overflow-x-auto"
+            style={{ WebkitOverflowScrolling: "touch" }}
+          >
+            <div
+              style={{
+                transformOrigin: "top left",
+                transform: isMobile
+                  ? `scale(${Math.min(1, (window.innerWidth - 24) / 816)})`
+                  : "scale(1)",
+                width: "816px",
+                marginBottom: isMobile
+                  ? `${Math.max(0, 1056 * Math.min(1, (window.innerWidth - 24) / 816) - 1056)}px`
+                  : 0,
+              }}
+            >
+              <div ref={printRef}>
+                {printData && dfact && (
+                  <PrintFactura
+                    factura={printData}
+                    dfact={dfact}
+                    lineas={printData.lineas ?? []}
+                  />
+                )}
+              </div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
