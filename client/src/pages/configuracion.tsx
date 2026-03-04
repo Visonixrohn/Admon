@@ -10,7 +10,17 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Edit, Clock, MapPin, Phone, Key, Smartphone } from "lucide-react";
+import {
+  Edit,
+  Clock,
+  MapPin,
+  Phone,
+  Key,
+  Smartphone,
+  Receipt,
+  CalendarDays,
+  Hash,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,6 +59,95 @@ export default function Configuracion() {
   const [telefono, setTelefono] = useState("");
   const [clave, setClave] = useState("");
   const [open, setOpen] = useState(false);
+  const [openFact, setOpenFact] = useState(false);
+
+  // ── Datos de facturación (SAR HN) ──────────────────────────────
+  const { data: dfact, isLoading: loadingFact } = useQuery({
+    queryKey: ["datos_facturacion"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("datos_facturacion")
+        .select("*")
+        .limit(1);
+      if (error) throw error;
+      return Array.isArray(data) && data.length > 0 ? data[0] : null;
+    },
+  });
+
+  const [fNombre, setFNombre] = useState("");
+  const [fRtn, setFRtn] = useState("");
+  const [fDireccion, setFDireccion] = useState("");
+  const [fTelefono, setFTelefono] = useState("");
+  const [fEmail, setFEmail] = useState("");
+  const [fCai, setFCai] = useState("");
+  const [fRangoInicio, setFRangoInicio] = useState("");
+  const [fRangoFin, setFRangoFin] = useState("");
+  const [fFechaLimite, setFFechaLimite] = useState("");
+  const [fPrefEst, setFPrefEst] = useState("000");
+  const [fPrefPE, setFPrefPE] = useState("001");
+  const [fPrefTD, setFPrefTD] = useState("01");
+
+  useEffect(() => {
+    if (dfact) {
+      setFNombre(dfact.nombre ?? "");
+      setFRtn(dfact.rtn ?? "");
+      setFDireccion(dfact.direccion ?? "");
+      setFTelefono(dfact.telefono ?? "");
+      setFEmail(dfact.email ?? "");
+      setFCai(dfact.cai ?? "");
+      setFRangoInicio(dfact.rango_inicio ?? "");
+      setFRangoFin(dfact.rango_fin ?? "");
+      setFFechaLimite(
+        dfact.fecha_limite ? dfact.fecha_limite.substring(0, 10) : "",
+      );
+      setFPrefEst(dfact.prefijo_establecimiento ?? "000");
+      setFPrefPE(dfact.prefijo_punto_emision ?? "001");
+      setFPrefTD(dfact.prefijo_tipo_doc ?? "01");
+    }
+  }, [dfact]);
+
+  async function onSaveFact() {
+    try {
+      const payload = {
+        nombre: fNombre,
+        rtn: fRtn,
+        direccion: fDireccion || null,
+        telefono: fTelefono || null,
+        email: fEmail || null,
+        cai: fCai,
+        rango_inicio: fRangoInicio,
+        rango_fin: fRangoFin,
+        fecha_limite: fFechaLimite || null,
+        prefijo_establecimiento: fPrefEst,
+        prefijo_punto_emision: fPrefPE,
+        prefijo_tipo_doc: fPrefTD,
+        updated_at: new Date().toISOString(),
+      } as any;
+
+      if (dfact && dfact.id) {
+        const { error } = await supabase
+          .from("datos_facturacion")
+          .update(payload)
+          .eq("id", dfact.id);
+        if (error) throw error;
+        toast({ title: "Datos de facturación guardados" });
+      } else {
+        const { error } = await supabase
+          .from("datos_facturacion")
+          .insert([payload]);
+        if (error) throw error;
+        toast({ title: "Datos de facturación creados" });
+      }
+      queryClient.invalidateQueries({ queryKey: ["datos_facturacion"] });
+      setOpenFact(false);
+    } catch (err: any) {
+      toast({
+        title: "Error guardando datos de facturación",
+        description: err?.message ?? String(err),
+        variant: "destructive",
+      });
+    }
+  }
 
   useEffect(() => {
     if (cfg) {
@@ -116,7 +215,7 @@ export default function Configuracion() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               size="sm"
               variant="outline"
@@ -125,6 +224,15 @@ export default function Configuracion() {
             >
               <Smartphone className="w-4 h-4" />
               Dispositivos
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setOpenFact(true)}
+              className="gap-2"
+            >
+              <Receipt className="w-4 h-4" />
+              Datos de Facturación
             </Button>
             <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
               <Edit className="w-4 h-4" />
@@ -197,6 +305,204 @@ export default function Configuracion() {
 
           {/* CardFooter removed: Reset button intentionally removed per request */}
         </Card>
+
+        {/* ── Modal Datos de Facturación (SAR HN) ──────────────── */}
+        <Dialog open={openFact} onOpenChange={setOpenFact}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Receipt className="w-5 h-5" />
+                Datos de Facturación
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              {/* Datos del emisor */}
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Datos del Emisor
+              </p>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Nombre / Razón Social
+                </label>
+                <Input
+                  value={fNombre}
+                  onChange={(e) => setFNombre(e.target.value)}
+                  placeholder="EMPRESA S. DE R.L. DE C.V."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  RTN (14 dígitos)
+                </label>
+                <Input
+                  value={fRtn}
+                  onChange={(e) => setFRtn(e.target.value)}
+                  placeholder="08019023505393"
+                  maxLength={14}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Dirección
+                </label>
+                <Textarea
+                  value={fDireccion}
+                  onChange={(e) => setFDireccion(e.target.value)}
+                  rows={2}
+                  placeholder="Ciudad, Colonia, Calle..."
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Teléfono
+                  </label>
+                  <Input
+                    value={fTelefono}
+                    onChange={(e) => setFTelefono(e.target.value)}
+                    placeholder="22651234"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Email
+                  </label>
+                  <Input
+                    value={fEmail}
+                    onChange={(e) => setFEmail(e.target.value)}
+                    type="email"
+                    placeholder="correo@empresa.com"
+                  />
+                </div>
+              </div>
+
+              {/* Autorización SAR */}
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-2">
+                Autorización de Impresión (SAR)
+              </p>
+              <div>
+                <label className="block text-sm font-medium mb-1 flex items-center gap-1">
+                  <Hash className="w-3 h-3" /> CAI
+                </label>
+                <Input
+                  value={fCai}
+                  onChange={(e) => setFCai(e.target.value)}
+                  placeholder="XXXXXX-XXXXXX-XXXXXX-XXXXXX-XXXXXX-XX"
+                  className="font-mono"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Código de Autorización de Impresión emitido por el SAR.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Rango Autorizado — Inicio
+                  </label>
+                  <Input
+                    value={fRangoInicio}
+                    onChange={(e) => setFRangoInicio(e.target.value)}
+                    placeholder="000-001-01-00000001"
+                    className="font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Rango Autorizado — Fin
+                  </label>
+                  <Input
+                    value={fRangoFin}
+                    onChange={(e) => setFRangoFin(e.target.value)}
+                    placeholder="000-001-01-99999999"
+                    className="font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1 flex items-center gap-1">
+                  <CalendarDays className="w-3 h-3" /> Fecha Límite de Emisión
+                </label>
+                <Input
+                  type="date"
+                  value={fFechaLimite}
+                  onChange={(e) => setFFechaLimite(e.target.value)}
+                />
+              </div>
+
+              {/* Numeración correlativa */}
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-2">
+                Numeración Correlativa (16 dígitos)
+              </p>
+              <p className="text-xs text-muted-foreground -mt-2">
+                Formato: <span className="font-mono">XXX-XXX-XX-XXXXXXXX</span>{" "}
+                (Establecimiento - Punto de Emisión - Tipo - Secuencial)
+              </p>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Establecimiento (3 dígitos)
+                  </label>
+                  <Input
+                    value={fPrefEst}
+                    onChange={(e) => setFPrefEst(e.target.value)}
+                    maxLength={3}
+                    className="font-mono"
+                    placeholder="000"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Punto Emisión (3 dígitos)
+                  </label>
+                  <Input
+                    value={fPrefPE}
+                    onChange={(e) => setFPrefPE(e.target.value)}
+                    maxLength={3}
+                    className="font-mono"
+                    placeholder="001"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Tipo Doc. (2 dígitos)
+                  </label>
+                  <Input
+                    value={fPrefTD}
+                    onChange={(e) => setFPrefTD(e.target.value)}
+                    maxLength={2}
+                    className="font-mono"
+                    placeholder="01"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Ejemplo de factura:{" "}
+                <span className="font-mono font-semibold">
+                  {fPrefEst || "000"}-{fPrefPE || "001"}-{fPrefTD || "01"}
+                  -00000001
+                </span>
+              </p>
+            </div>
+
+            <DialogFooter>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setOpenFact(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button size="sm" onClick={onSaveFact}>
+                  Guardar
+                </Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent>

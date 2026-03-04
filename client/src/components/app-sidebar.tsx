@@ -12,6 +12,8 @@ import {
   TrendingUp,
   TrendingDown,
   LogOut,
+  Receipt,
+  Calculator,
 } from "lucide-react";
 import {
   Sidebar,
@@ -55,6 +57,12 @@ const navigationItems = [
   { title: "Avances", url: "/avances", icon: TrendingUp },
   { title: "Egresos", url: "/egresos", icon: TrendingDown },
   { title: "Estadisticas", url: "/estadisticas", icon: BarChart3 },
+];
+
+const facturacionItems = [
+  { title: "Facturar", url: "/facturar", icon: Receipt },
+  { title: "Reporte de Ventas", url: "/reporte-ventas", icon: BarChart3 },
+  { title: "Cálculo Impuestos", url: "/calculos-impuestos", icon: Calculator },
 ];
 
 type AppSidebarProps = {
@@ -134,6 +142,41 @@ export function AppSidebar({ onLogout }: AppSidebarProps) {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* ── Facturación ── */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Facturación SAR
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {facturacionItems.map((item) => {
+                const isActive =
+                  location === item.url ||
+                  (item.url !== "/" && location.startsWith(item.url));
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      className="transition-colors"
+                    >
+                      <Link
+                        href={item.url}
+                        onClick={() => {
+                          if (isMobile) setOpenMobile(false);
+                        }}
+                      >
+                        <item.icon className="h-5 w-5" />
+                        <span className="font-medium">{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border p-4">
         <SidebarMenu>
@@ -151,7 +194,7 @@ export function AppSidebar({ onLogout }: AppSidebarProps) {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
-          
+
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
               <button
@@ -168,13 +211,14 @@ export function AppSidebar({ onLogout }: AppSidebarProps) {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
-      
+
       <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Cerrar sesión?</AlertDialogTitle>
             <AlertDialogDescription>
-              ¿Estás seguro que deseas cerrar sesión? Tendrás que volver a ingresar tu clave para acceder.
+              ¿Estás seguro que deseas cerrar sesión? Tendrás que volver a
+              ingresar tu clave para acceder.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

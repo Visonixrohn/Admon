@@ -27,6 +27,9 @@ import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import AccesoDenegado from "@/pages/acceso-denegado";
 import Dispositivos from "@/pages/dispositivos";
+import Facturar from "@/pages/facturar";
+import ReporteVentas from "@/pages/reporte-ventas";
+import CalculosImpuestos from "@/pages/calculos-impuestos";
 import React, { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -53,6 +56,9 @@ function Router() {
       <Route path="/egresos/:id" component={EgresoDetalle} />
       <Route path="/egresos" component={Egresos} />
       <Route path="/dispositivos" component={Dispositivos} />
+      <Route path="/facturar" component={Facturar} />
+      <Route path="/reporte-ventas" component={ReporteVentas} />
+      <Route path="/calculos-impuestos" component={CalculosImpuestos} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -61,7 +67,9 @@ function Router() {
 function App() {
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [deviceAuthorized, setDeviceAuthorized] = useState<boolean | null>(null);
+  const [deviceAuthorized, setDeviceAuthorized] = useState<boolean | null>(
+    null,
+  );
   const [deviceFingerprint, setDeviceFingerprint] = useState<string>("");
   const [checkingDevice, setCheckingDevice] = useState(true);
   const { toast } = useToast();
@@ -93,7 +101,7 @@ function App() {
             .from("dispositivos")
             .update({ ultimo_acceso: new Date().toISOString() })
             .eq("id", data.id);
-          
+
           setDeviceAuthorized(true);
         } else {
           // Dispositivo no autorizado
@@ -132,7 +140,8 @@ function App() {
 
       toast({
         title: "Actualización disponible",
-        description: "Hay una nueva versión disponible. Haz clic para actualizar.",
+        description:
+          "Hay una nueva versión disponible. Haz clic para actualizar.",
         action: (
           <Button
             onClick={() => {
@@ -146,7 +155,8 @@ function App() {
     }
 
     window.addEventListener("swUpdated", onSWUpdated as EventListener);
-    return () => window.removeEventListener("swUpdated", onSWUpdated as EventListener);
+    return () =>
+      window.removeEventListener("swUpdated", onSWUpdated as EventListener);
   }, [toast]);
 
   const handleLogout = () => {
@@ -188,8 +198,11 @@ function App() {
   }
 
   // Si no está autenticado, mostrar login
-  if (!authed) return <Login onSuccess={() => setAuthed(true)} isLoggingOut={isLoggingOut} />;
-  
+  if (!authed)
+    return (
+      <Login onSuccess={() => setAuthed(true)} isLoggingOut={isLoggingOut} />
+    );
+
   const sidebarStyle = {
     "--sidebar-width": "16rem",
     "--sidebar-width-icon": "3.5rem",
@@ -199,8 +212,13 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="light" storageKey="visonixro-theme">
         <TooltipProvider>
-          <SidebarProvider style={sidebarStyle as React.CSSProperties} side="right">
-            <div className={`flex h-screen w-full transition-opacity duration-500 ${isLoggingOut ? 'opacity-0' : 'opacity-100'}`}>
+          <SidebarProvider
+            style={sidebarStyle as React.CSSProperties}
+            side="right"
+          >
+            <div
+              className={`flex h-screen w-full transition-opacity duration-500 ${isLoggingOut ? "opacity-0" : "opacity-100"}`}
+            >
               <AppSidebar onLogout={handleLogout} />
               <div className="flex flex-col flex-1 overflow-hidden">
                 <header className="flex items-center justify-between gap-4 px-4 py-3 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50">
