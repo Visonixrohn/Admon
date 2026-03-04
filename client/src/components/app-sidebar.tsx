@@ -14,6 +14,7 @@ import {
   LogOut,
   Receipt,
   Calculator,
+  ReceiptText,
 } from "lucide-react";
 import {
   Sidebar,
@@ -61,6 +62,7 @@ const navigationItems = [
 
 const facturacionItems = [
   { title: "Facturar", url: "/facturar", icon: Receipt },
+  { title: "Facturas Emitidas", url: "/facturas-emitidas", icon: ReceiptText },
   { title: "Reporte de Ventas", url: "/reporte-ventas", icon: BarChart3 },
   { title: "Cálculo Impuestos", url: "/calculos-impuestos", icon: Calculator },
 ];

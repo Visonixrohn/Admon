@@ -41,6 +41,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
+import { imprimirEnMovil } from "@/lib/factura-print";
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 type TipoGravamen =
@@ -475,20 +476,6 @@ export default function Facturar() {
     },
   });
 
-  // ── Historial de facturas
-  const { data: historial = [], refetch: refetchHistorial } = useQuery({
-    queryKey: ["facturas"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("facturas")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-
   // ── Catálogo de productos/servicios
   const { data: catalogo = [] } = useQuery({
     queryKey: ["productos_servicios"],
@@ -632,22 +619,7 @@ export default function Facturar() {
 
   const handleMobilePrint = useCallback(async () => {
     if (!printData || !dfact) return;
-    // Convertir el logo a base64 para que se vea en la pestaña blob:
-    let logoSrc = "/vsr.png";
-    try {
-      const resp = await fetch("/vsr.png");
-      const buf = await resp.arrayBuffer();
-      const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-      const mime = resp.headers.get("content-type") || "image/png";
-      logoSrc = `data:${mime};base64,${b64}`;
-    } catch {
-      // si falla, deja la ruta relativa como fallback
-    }
-    const html = buildFacturaHtml(printData, dfact, printData.lineas ?? [], logoSrc);
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank");
-    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    await imprimirEnMovil(printData, dfact, printData.lineas ?? []);
   }, [printData, dfact]);
 
   async function emitirFactura() {
@@ -1063,71 +1035,6 @@ export default function Facturar() {
           )}
         </div>
       </div>
-
-      {/* Historial */}
-      <Card>
-        <CardHeader className="pb-3 flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Facturas Emitidas</CardTitle>
-          <Button size="sm" variant="ghost" onClick={() => refetchHistorial()}>
-            <RefreshCw className="w-4 h-4" />
-          </Button>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>No. Factura</TableHead>
-                <TableHead className="hidden sm:table-cell">Fecha</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead className="hidden md:table-cell">RTN</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead className="hidden sm:table-cell">Estado</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {historial.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="text-center text-muted-foreground py-8"
-                  >
-                    Aún no hay facturas emitidas
-                  </TableCell>
-                </TableRow>
-              ) : (
-                historial.map((f: any) => (
-                  <TableRow key={f.id}>
-                    <TableCell className="font-mono text-xs">
-                      {f.numero_factura}
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">{f.fecha_emision}</TableCell>
-                    <TableCell className="text-sm">{f.cliente_nombre}</TableCell>
-                    <TableCell className="font-mono hidden md:table-cell">
-                      {f.cliente_rtn ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {lempiras(parseFloat(f.total))}
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">
-                      <Badge
-                        variant={
-                          f.estado === "emitida"
-                            ? "default"
-                            : f.estado === "anulada"
-                              ? "destructive"
-                              : "secondary"
-                        }
-                      >
-                        {f.estado}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
 
       {/* ── Modal agregar / editar línea ── */}
       <Dialog open={showLineaModal} onOpenChange={setShowLineaModal}>

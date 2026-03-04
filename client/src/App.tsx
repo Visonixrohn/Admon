@@ -28,6 +28,7 @@ import Login from "@/pages/login";
 import AccesoDenegado from "@/pages/acceso-denegado";
 import Dispositivos from "@/pages/dispositivos";
 import Facturar from "@/pages/facturar";
+import FacturasEmitidas from "@/pages/facturas-emitidas";
 import ReporteVentas from "@/pages/reporte-ventas";
 import CalculosImpuestos from "@/pages/calculos-impuestos";
 import React, { useEffect, useState } from "react";
@@ -57,6 +58,7 @@ function Router() {
       <Route path="/egresos" component={Egresos} />
       <Route path="/dispositivos" component={Dispositivos} />
       <Route path="/facturar" component={Facturar} />
+      <Route path="/facturas-emitidas" component={FacturasEmitidas} />
       <Route path="/reporte-ventas" component={ReporteVentas} />
       <Route path="/calculos-impuestos" component={CalculosImpuestos} />
       <Route component={NotFound} />
