@@ -135,6 +135,43 @@ const LABEL_GRAVAMEN: Record<TipoGravamen, string> = {
   tasa_cero: "Tasa Cero",
 };
 
+// ─── Escalador para previsualización en móvil ───────────────────────────────
+const INVOICE_W = 816; // carta 8.5in a 96dpi
+const INVOICE_H = 1056; // carta 11in a 96dpi
+
+function PreviewScaler({ children }: { children: React.ReactNode }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = React.useState(1);
+
+  useEffect(() => {
+    function measure() {
+      if (containerRef.current) {
+        const available = containerRef.current.offsetWidth;
+        setScale(Math.min(1, available / INVOICE_W));
+      }
+    }
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
+  return (
+    <div ref={containerRef} style={{ width: "100%", overflow: "hidden" }}>
+      <div style={{ height: `${INVOICE_H * scale}px`, overflow: "hidden" }}>
+        <div
+          style={{
+            transform: `scale(${scale})`,
+            transformOrigin: "top left",
+            width: `${INVOICE_W}px`,
+          }}
+        >
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Componente de impresión ──────────────────────────────────────────────────
 function PrintFactura({
   factura,
@@ -150,11 +187,11 @@ function PrintFactura({
   return (
     <div
       style={{
-        width: "794px",
-        minHeight: "1123px",
+        width: "816px",
+        minHeight: "1056px",
         margin: "0 auto",
         background: "white",
-        padding: "40px",
+        padding: "36px 48px",
         fontFamily: "Arial, Helvetica, sans-serif",
         fontSize: "12px",
         color: "#000",
@@ -162,6 +199,13 @@ function PrintFactura({
         boxSizing: "border-box",
       }}
     >
+      {/* Estilos de impresión carta */}
+      <style>{`
+        @media print {
+          @page { size: letter portrait; margin: 0; }
+          body { margin: 0; }
+        }
+      `}</style>
       {/* Logo y nombre — centrado, arriba de todo */}
       <div style={{ textAlign: "center", marginBottom: "20px" }}>
         <img
@@ -336,6 +380,7 @@ function PrintFactura({
 export default function Facturar() {
   const { toast } = useToast();
   const printRef = useRef<HTMLDivElement>(null);
+  const hiddenPrintRef = useRef<HTMLDivElement>(null);
 
   // ── Datos de facturación (SAR)
   const { data: dfact } = useQuery({
@@ -496,7 +541,7 @@ export default function Facturar() {
 
   // ── Guardar e imprimir
   const handlePrint = useReactToPrint({
-    contentRef: printRef,
+    contentRef: hiddenPrintRef,
   });
 
   async function emitirFactura() {
@@ -518,18 +563,26 @@ export default function Facturar() {
 
     setSaving(true);
     try {
+      // Leer correlativo actual directo de BD para evitar duplicados por caché
+      const { data: dfactFresh, error: dfactErr } = await supabase
+        .from("datos_facturacion")
+        .select("*")
+        .eq("id", dfact.id)
+        .single();
+      if (dfactErr || !dfactFresh) throw dfactErr ?? new Error("Sin datos de facturación");
+
       const numero = generarCorrelativo(
-        dfact.prefijo_establecimiento,
-        dfact.prefijo_punto_emision,
-        dfact.prefijo_tipo_doc,
-        dfact.correlativo_actual,
+        dfactFresh.prefijo_establecimiento,
+        dfactFresh.prefijo_punto_emision,
+        dfactFresh.prefijo_tipo_doc,
+        dfactFresh.correlativo_actual,
       );
 
       const payload = {
         numero_factura: numero,
-        cai: dfact.cai,
+        cai: dfactFresh.cai,
         fecha_emision: new Date().toISOString().substring(0, 10),
-        fecha_limite: dfact.fecha_limite,
+        fecha_limite: dfactFresh.fecha_limite,
         cliente_nombre: clienteNombre,
         cliente_rtn: clienteRtn || null,
         cliente_direccion: clienteDireccion || null,
@@ -588,10 +641,10 @@ export default function Facturar() {
       await supabase
         .from("datos_facturacion")
         .update({
-          correlativo_actual: dfact.correlativo_actual + 1,
+          correlativo_actual: dfactFresh.correlativo_actual + 1,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", dfact.id);
+        .eq("id", dfactFresh.id);
 
       queryClient.invalidateQueries({ queryKey: ["datos_facturacion"] });
       queryClient.invalidateQueries({ queryKey: ["facturas"] });
@@ -1137,7 +1190,7 @@ export default function Facturar() {
 
       {/* Modal de impresión */}
       <Dialog open={showPrint} onOpenChange={setShowPrint}>
-        <DialogContent className="w-[98vw] max-w-[880px] max-h-[90vh] overflow-y-auto p-2 sm:p-6">
+        <DialogContent className="w-[98vw] max-w-[880px] max-h-[95vh] overflow-y-auto p-3 sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Printer className="w-5 h-5" /> Vista previa — {printData?.numero}
@@ -1148,7 +1201,25 @@ export default function Facturar() {
               <Printer className="w-4 h-4 mr-2" /> Imprimir
             </Button>
           </div>
-          <div ref={printRef}>
+          {/* Preview escalado para móvil (no se imprime desde aquí) */}
+          <div>
+            {printData && dfact && (
+              <PreviewScaler>
+                <PrintFactura
+                  factura={printData}
+                  dfact={dfact}
+                  lineas={printData.lineas ?? []}
+                />
+              </PreviewScaler>
+            )}
+          </div>
+
+          {/* Copia oculta a tamaño real — usada por react-to-print */}
+          <div
+            ref={hiddenPrintRef}
+            aria-hidden="true"
+            style={{ position: "absolute", left: "-9999px", top: 0 }}
+          >
             {printData && dfact && (
               <PrintFactura
                 factura={printData}
