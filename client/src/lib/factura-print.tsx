@@ -55,7 +55,17 @@ export function calcularTotales(lineas: LineaItem[]) {
     }
   }
   const total = subtotal + isv15 + isv18;
-  return { subtotal, exentos, exonerados, tasaCero, grav15, isv15, grav18, isv18, total };
+  return {
+    subtotal,
+    exentos,
+    exonerados,
+    tasaCero,
+    grav15,
+    isv15,
+    grav18,
+    isv18,
+    total,
+  };
 }
 
 export function lempiras(n: number) {
@@ -105,21 +115,47 @@ export function PrintFactura({
         <img
           src="/vsr.png"
           alt="Visonixro"
-          style={{ width: "90px", height: "90px", objectFit: "contain", display: "block", margin: "0 auto" }}
+          style={{
+            width: "90px",
+            height: "90px",
+            objectFit: "contain",
+            display: "block",
+            margin: "0 auto",
+          }}
         />
-        <p style={{ fontWeight: "bold", fontSize: "15px", marginTop: "6px", letterSpacing: "1px", textTransform: "uppercase" }}>
+        <p
+          style={{
+            fontWeight: "bold",
+            fontSize: "15px",
+            marginTop: "6px",
+            letterSpacing: "1px",
+            textTransform: "uppercase",
+          }}
+        >
           ESTUDIO DIGITAL VISONIXRO
         </p>
       </div>
 
       {/* Encabezado */}
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "24px" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginBottom: "24px",
+        }}
+      >
         <div style={{ maxWidth: "280px" }}>
           <p style={{ fontWeight: "bold", fontSize: "11px" }}>CLIENTE</p>
           <p>RTN: {factura.clienteRtn || factura.cliente_rtn || "—"}</p>
           <p>Nombre: {factura.clienteNombre || factura.cliente_nombre}</p>
-          <p>Dirección: {factura.clienteDireccion || factura.cliente_direccion || "—"}</p>
-          <p style={{ marginTop: "8px" }}>Fecha Emisión: {factura.fecha_emision || new Date().toLocaleDateString("es-HN")}</p>
+          <p>
+            Dirección:{" "}
+            {factura.clienteDireccion || factura.cliente_direccion || "—"}
+          </p>
+          <p style={{ marginTop: "8px" }}>
+            Fecha Emisión:{" "}
+            {factura.fecha_emision || new Date().toLocaleDateString("es-HN")}
+          </p>
           <p>No. Documento: {factura.numero || factura.numero_factura}</p>
         </div>
         <div style={{ textAlign: "right", maxWidth: "320px" }}>
@@ -135,10 +171,16 @@ export function PrintFactura({
       <hr />
 
       {/* Tabla de líneas */}
-      <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "16px" }}>
+      <table
+        style={{ width: "100%", borderCollapse: "collapse", marginTop: "16px" }}
+      >
         <thead>
           <tr style={{ borderBottom: "2px solid #000" }}>
-            <th style={{ textAlign: "left", paddingBottom: "4px", width: "38%" }}>Descripción</th>
+            <th
+              style={{ textAlign: "left", paddingBottom: "4px", width: "38%" }}
+            >
+              Descripción
+            </th>
             <th style={{ textAlign: "right", width: "7%" }}>Cant.</th>
             <th style={{ textAlign: "right", width: "13%" }}>Precio Unit.</th>
             <th style={{ textAlign: "right", width: "11%" }}>Desc.</th>
@@ -151,12 +193,30 @@ export function PrintFactura({
             const { sub } = calcularLinea(l);
             return (
               <tr key={l.id} style={{ borderBottom: "1px solid #ddd" }}>
-                <td style={{ padding: "4px 6px 4px 0", wordBreak: "break-word", fontSize: "11px" }}>{l.descripcion}</td>
-                <td style={{ textAlign: "right", fontSize: "11px" }}>{l.cantidad}</td>
-                <td style={{ textAlign: "right", fontSize: "11px" }}>{l.precioUnitario.toFixed(2)}</td>
-                <td style={{ textAlign: "right", fontSize: "11px" }}>{l.descuento.toFixed(2)}</td>
-                <td style={{ textAlign: "right", fontSize: "11px" }}>{LABEL_GRAVAMEN[l.tipoGravamen]}</td>
-                <td style={{ textAlign: "right", fontSize: "11px" }}>{sub.toFixed(2)}</td>
+                <td
+                  style={{
+                    padding: "4px 6px 4px 0",
+                    wordBreak: "break-word",
+                    fontSize: "11px",
+                  }}
+                >
+                  {l.descripcion}
+                </td>
+                <td style={{ textAlign: "right", fontSize: "11px" }}>
+                  {l.cantidad}
+                </td>
+                <td style={{ textAlign: "right", fontSize: "11px" }}>
+                  {l.precioUnitario.toFixed(2)}
+                </td>
+                <td style={{ textAlign: "right", fontSize: "11px" }}>
+                  {l.descuento.toFixed(2)}
+                </td>
+                <td style={{ textAlign: "right", fontSize: "11px" }}>
+                  {LABEL_GRAVAMEN[l.tipoGravamen]}
+                </td>
+                <td style={{ textAlign: "right", fontSize: "11px" }}>
+                  {sub.toFixed(2)}
+                </td>
               </tr>
             );
           })}
@@ -164,27 +224,45 @@ export function PrintFactura({
       </table>
 
       {/* Totales */}
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "24px" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          marginTop: "24px",
+        }}
+      >
         <table style={{ width: "340px" }}>
           <tbody>
-            {([
-              ["Subtotal", totales.subtotal],
-              ["Valores Exentos", totales.exentos],
-              ["Valores Exonerados", totales.exonerados],
-              ["Valores Alícuota Tasa Cero", totales.tasaCero],
-              ["Monto Gravable ISV 15%", totales.grav15],
-              ["ISV 15%", totales.isv15],
-              ["Monto Gravable ISV 18%", totales.grav18],
-              ["ISV 18%", totales.isv18],
-            ] as [string, number][]).map(([lbl, val]) => (
+            {(
+              [
+                ["Subtotal", totales.subtotal],
+                ["Valores Exentos", totales.exentos],
+                ["Valores Exonerados", totales.exonerados],
+                ["Valores Alícuota Tasa Cero", totales.tasaCero],
+                ["Monto Gravable ISV 15%", totales.grav15],
+                ["ISV 15%", totales.isv15],
+                ["Monto Gravable ISV 18%", totales.grav18],
+                ["ISV 18%", totales.isv18],
+              ] as [string, number][]
+            ).map(([lbl, val]) => (
               <tr key={lbl}>
                 <td style={{ padding: "2px 8px" }}>{lbl}</td>
-                <td style={{ textAlign: "right", padding: "2px 0" }}>L {val.toFixed(2)}</td>
+                <td style={{ textAlign: "right", padding: "2px 0" }}>
+                  L {val.toFixed(2)}
+                </td>
               </tr>
             ))}
-            <tr style={{ borderTop: "2px solid #000", fontWeight: "bold", fontSize: "14px" }}>
+            <tr
+              style={{
+                borderTop: "2px solid #000",
+                fontWeight: "bold",
+                fontSize: "14px",
+              }}
+            >
               <td style={{ padding: "4px 8px" }}>Total L</td>
-              <td style={{ textAlign: "right" }}>L {totales.total.toFixed(2)}</td>
+              <td style={{ textAlign: "right" }}>
+                L {totales.total.toFixed(2)}
+              </td>
             </tr>
           </tbody>
         </table>
@@ -192,17 +270,39 @@ export function PrintFactura({
 
       {/* Notas SAR */}
       <div style={{ marginTop: "24px", fontSize: "11px" }}>
-        <p>No. de Orden de Compra Exenta: {factura.noOrdenExenta || factura.no_orden_exenta || "—"}</p>
-        <p>No. de Constancia de registro exonerado: {factura.noConstanciaExonerado || factura.no_constancia_exonerado || "—"}</p>
-        <p>No. de registro de la SAG: {factura.noRegistroSag || factura.no_registro_sag || "—"}</p>
+        <p>
+          No. de Orden de Compra Exenta:{" "}
+          {factura.noOrdenExenta || factura.no_orden_exenta || "—"}
+        </p>
+        <p>
+          No. de Constancia de registro exonerado:{" "}
+          {factura.noConstanciaExonerado ||
+            factura.no_constancia_exonerado ||
+            "—"}
+        </p>
+        <p>
+          No. de registro de la SAG:{" "}
+          {factura.noRegistroSag || factura.no_registro_sag || "—"}
+        </p>
       </div>
 
       <div style={{ flex: 1 }} />
 
       {/* Pie */}
-      <div style={{ borderTop: "1px solid #ccc", paddingTop: "8px", marginTop: "16px", fontSize: "10px", color: "#555" }}>
+      <div
+        style={{
+          borderTop: "1px solid #ccc",
+          paddingTop: "8px",
+          marginTop: "16px",
+          fontSize: "10px",
+          color: "#555",
+        }}
+      >
         <p>CAI: {dfact?.cai || "—"}</p>
-        <p>Rango Autorizado: {dfact?.rango_inicio || "—"} al {dfact?.rango_fin || "—"}</p>
+        <p>
+          Rango Autorizado: {dfact?.rango_inicio || "—"} al{" "}
+          {dfact?.rango_fin || "—"}
+        </p>
         <p>Fecha Límite de Emisión: {dfact?.fecha_limite || "—"}</p>
       </div>
     </div>
@@ -231,26 +331,34 @@ export function buildFacturaHtml(
     })
     .join("");
 
-  const totalesRows = ([
-    ["Subtotal", totales.subtotal],
-    ["Valores Exentos", totales.exentos],
-    ["Valores Exonerados", totales.exonerados],
-    ["Valores Alícuota Tasa Cero", totales.tasaCero],
-    ["Monto Gravable ISV 15%", totales.grav15],
-    ["ISV 15%", totales.isv15],
-    ["Monto Gravable ISV 18%", totales.grav18],
-    ["ISV 18%", totales.isv18],
-  ] as [string, number][])
-    .map(([lbl, val]) => `<tr><td style="padding:2px 8px">${lbl}</td><td style="text-align:right;padding:2px 0">L ${val.toFixed(2)}</td></tr>`)
+  const totalesRows = (
+    [
+      ["Subtotal", totales.subtotal],
+      ["Valores Exentos", totales.exentos],
+      ["Valores Exonerados", totales.exonerados],
+      ["Valores Alícuota Tasa Cero", totales.tasaCero],
+      ["Monto Gravable ISV 15%", totales.grav15],
+      ["ISV 15%", totales.isv15],
+      ["Monto Gravable ISV 18%", totales.grav18],
+      ["ISV 18%", totales.isv18],
+    ] as [string, number][]
+  )
+    .map(
+      ([lbl, val]) =>
+        `<tr><td style="padding:2px 8px">${lbl}</td><td style="text-align:right;padding:2px 0">L ${val.toFixed(2)}</td></tr>`,
+    )
     .join("");
 
   const numero = factura.numero || factura.numero_factura;
   const clienteRtn = factura.clienteRtn || factura.cliente_rtn || "—";
   const clienteNombre = factura.clienteNombre || factura.cliente_nombre;
-  const clienteDireccion = factura.clienteDireccion || factura.cliente_direccion || "—";
-  const fechaEmision = factura.fecha_emision || new Date().toLocaleDateString("es-HN");
+  const clienteDireccion =
+    factura.clienteDireccion || factura.cliente_direccion || "—";
+  const fechaEmision =
+    factura.fecha_emision || new Date().toLocaleDateString("es-HN");
   const noOrdenExenta = factura.noOrdenExenta || factura.no_orden_exenta || "—";
-  const noConstanciaExonerado = factura.noConstanciaExonerado || factura.no_constancia_exonerado || "—";
+  const noConstanciaExonerado =
+    factura.noConstanciaExonerado || factura.no_constancia_exonerado || "—";
   const noRegistroSag = factura.noRegistroSag || factura.no_registro_sag || "—";
 
   return `<!DOCTYPE html>
@@ -334,21 +442,29 @@ export function buildFacturaHtml(
 </html>`;
 }
 
-/** Convierte el logo a base64 para incrustar en HTML móvil */
+/** Convierte el logo a base64 para incrustar en HTML móvil.
+ *  Usa FileReader.readAsDataURL para ser compatible con imágenes grandes en móviles.
+ */
 export async function fetchLogoBase64(): Promise<string> {
-  try {
-    const resp = await fetch("/vsr.png");
-    const buf = await resp.arrayBuffer();
-    const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-    const mime = resp.headers.get("content-type") || "image/png";
-    return `data:${mime};base64,${b64}`;
-  } catch {
-    return "/vsr.png";
-  }
+  return new Promise((resolve) => {
+    fetch("/vsr.png")
+      .then((resp) => resp.blob())
+      .then((blob) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = () => resolve("/vsr.png");
+        reader.readAsDataURL(blob);
+      })
+      .catch(() => resolve("/vsr.png"));
+  });
 }
 
 /** Abre una pestaña nueva con el HTML de la factura y lanza el diálogo de impresión del navegador */
-export async function imprimirEnMovil(factura: any, dfact: any, lineas: LineaItem[]) {
+export async function imprimirEnMovil(
+  factura: any,
+  dfact: any,
+  lineas: LineaItem[],
+) {
   const logoSrc = await fetchLogoBase64();
   const html = buildFacturaHtml(factura, dfact, lineas, logoSrc);
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
