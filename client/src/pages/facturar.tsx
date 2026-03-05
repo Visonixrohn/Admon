@@ -228,7 +228,9 @@ function PrintFactura({
       >
         <thead>
           <tr style={{ borderBottom: "2px solid #000" }}>
-            <th style={{ textAlign: "left", paddingBottom: "4px", width: "38%" }}>
+            <th
+              style={{ textAlign: "left", paddingBottom: "4px", width: "38%" }}
+            >
               Descripción
             </th>
             <th style={{ textAlign: "right", width: "7%" }}>Cant.</th>
@@ -243,16 +245,30 @@ function PrintFactura({
             const { sub } = calcularLinea(l);
             return (
               <tr key={l.id} style={{ borderBottom: "1px solid #ddd" }}>
-                <td style={{ padding: "4px 6px 4px 0", wordBreak: "break-word", fontSize: "11px" }}>{l.descripcion}</td>
-                <td style={{ textAlign: "right", fontSize: "11px" }}>{l.cantidad}</td>
+                <td
+                  style={{
+                    padding: "4px 6px 4px 0",
+                    wordBreak: "break-word",
+                    fontSize: "11px",
+                  }}
+                >
+                  {l.descripcion}
+                </td>
+                <td style={{ textAlign: "right", fontSize: "11px" }}>
+                  {l.cantidad}
+                </td>
                 <td style={{ textAlign: "right", fontSize: "11px" }}>
                   {l.precioUnitario.toFixed(2)}
                 </td>
-                <td style={{ textAlign: "right", fontSize: "11px" }}>{l.descuento.toFixed(2)}</td>
+                <td style={{ textAlign: "right", fontSize: "11px" }}>
+                  {l.descuento.toFixed(2)}
+                </td>
                 <td style={{ textAlign: "right", fontSize: "11px" }}>
                   {LABEL_GRAVAMEN[l.tipoGravamen]}
                 </td>
-                <td style={{ textAlign: "right", fontSize: "11px" }}>{sub.toFixed(2)}</td>
+                <td style={{ textAlign: "right", fontSize: "11px" }}>
+                  {sub.toFixed(2)}
+                </td>
               </tr>
             );
           })}
@@ -1283,7 +1299,9 @@ export default function Facturar() {
               />
             </div>
             <div className="flex justify-end pt-2">
-              <Button size="sm" onClick={() => setShowSarModal(false)}>Listo</Button>
+              <Button size="sm" onClick={() => setShowSarModal(false)}>
+                Listo
+              </Button>
             </div>
           </div>
         </DialogContent>
