@@ -165,9 +165,13 @@ function RecentPaymentItem({
 function UpcomingPaymentItem({
   payment,
   clientName,
+  type,
+  clientId,
 }: {
   payment: Payment;
   clientName: string;
+  type?: "contrato" | "suscripcion";
+  clientId?: string;
 }) {
   const daysUntil = payment.dueDate ? getDaysUntilDue(payment.dueDate) : NaN;
   const isOverdue = Number.isFinite(daysUntil) ? daysUntil < 0 : false;
@@ -175,8 +179,8 @@ function UpcomingPaymentItem({
     ? daysUntil <= 3 && daysUntil >= 0
     : false;
 
-  return (
-    <div className="flex items-center gap-4 py-3 border-b border-border last:border-0">
+  const inner = (
+    <div className={`flex items-center gap-4 py-3 border-b border-border last:border-0 ${clientId ? "cursor-pointer hover:bg-muted/50 rounded-md px-1 -mx-1 transition-colors" : ""}`}>
       <div
         className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
           isOverdue
@@ -197,7 +201,17 @@ function UpcomingPaymentItem({
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{clientName}</p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium truncate">{clientName}</p>
+          {type && (
+            <Badge
+              variant={type === "contrato" ? "outline" : "secondary"}
+              className="text-[10px] px-1.5 py-0 h-4 flex-shrink-0"
+            >
+              {type === "contrato" ? "Contrato" : "Suscripción"}
+            </Badge>
+          )}
+        </div>
         <p
           className={`text-xs ${
             isOverdue ? "text-red-500 font-medium" : "text-muted-foreground"
@@ -217,6 +231,15 @@ function UpcomingPaymentItem({
       </div>
     </div>
   );
+
+  if (clientId) {
+    return (
+      <Link href={`/clientes/${clientId}`}>
+        {inner}
+      </Link>
+    );
+  }
+  return inner;
 }
 
 const CHART_COLORS = [
@@ -480,19 +503,24 @@ export default function Dashboard() {
           status: "pendiente",
         },
         clientName: cMap[s.cliente] ?? s.cliente ?? "Cliente",
+        clientId: s.cliente ? String(s.cliente) : undefined,
+        type: "suscripcion" as const,
       }));
 
       const contratoItems = contratos
         .filter((c: any) => c.proximo_pago)
         .map((c: any) => {
-          // Calculate installment amount as (monto_total - pago_inicial) / cantidad_de_pagos
           const montoTotal = Number(c.monto_total ?? 0);
           const pagoInicial = Number(c.pago_inicial ?? 0);
           const cuotas = Math.max(1, Number(c.cantidad_de_pagos ?? 1));
           const cuota = (montoTotal - pagoInicial) / cuotas;
-          const amount = Number.isFinite(cuota)
-            ? cuota
-            : Math.max(0, montoTotal - pagoInicial);
+          const pagado = pagosMap[String(c.id)] ?? 0;
+          const valorRestante = Math.max(0, montoTotal - pagoInicial - pagado);
+          // Filtrar contratos ya saldados
+          if (valorRestante <= 0) return null;
+          // Mostrar el menor entre la cuota y el valor restante
+          const cuotaBase = Number.isFinite(cuota) ? cuota : valorRestante;
+          const amount = Math.min(cuotaBase, valorRestante);
           return {
             payment: {
               id: c.id,
@@ -501,8 +529,11 @@ export default function Dashboard() {
               status: "pendiente",
             },
             clientName: cMap[c.cliente] ?? c.cliente ?? "Cliente",
+            clientId: c.cliente ? String(c.cliente) : undefined,
+            type: "contrato" as const,
           };
-        });
+        })
+        .filter(Boolean);
 
       // Combine both lists and sort by dueDate
       const combined = [...subsItems, ...contratoItems].sort((a, b) => {
@@ -915,11 +946,13 @@ export default function Dashboard() {
           <CardContent>
             {upcomingPayments && upcomingPayments.length > 0 ? (
               <div>
-                {upcomingPayments.slice(0, 5).map(({ payment, clientName }) => (
+                {upcomingPayments.slice(0, 5).map(({ payment, clientName, type, clientId }: any) => (
                   <UpcomingPaymentItem
                     key={payment.id}
                     payment={payment}
                     clientName={clientName}
+                    type={type}
+                    clientId={clientId}
                   />
                 ))}
               </div>
