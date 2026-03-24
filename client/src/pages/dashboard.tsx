@@ -21,6 +21,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
   LineChart,
   Line,
@@ -573,7 +574,7 @@ export default function Dashboard() {
         sixMonthsAgo.getTime() + 6 * 60 * 60 * 1000
       );
 
-      const [pagosRes, contratosRes, suscripcionesRes, egresosRes] =
+      const [pagosRes, contratosRes, suscripcionesRes, egresosRes, pIngresosRes] =
         await Promise.all([
           supabase
             .from("pagos")
@@ -593,6 +594,11 @@ export default function Dashboard() {
             .select("id,fecha,monto")
             .gte("fecha", sixMonthsAgoUTC.toISOString())
             .order("fecha", { ascending: true }),
+          supabase
+            .from("p_ingresos")
+            .select("id,fecha,monto")
+            .gte("fecha", sixMonthsAgo.toISOString().slice(0, 10))
+            .order("fecha", { ascending: true }),
         ]);
 
       if (pagosRes.error) throw pagosRes.error;
@@ -604,6 +610,7 @@ export default function Dashboard() {
         ? suscripcionesRes.data
         : [];
       const egresos = Array.isArray(egresosRes.data) ? egresosRes.data : [];
+      const pIngresos = Array.isArray(pIngresosRes.data) ? pIngresosRes.data : [];
 
       // build months array usando horario hondureño
       const months: Record<
@@ -632,6 +639,7 @@ export default function Dashboard() {
           subscriptions: 0,
           revenue: 0,
           egresos: 0,
+          ingresos: 0,
         };
       }
 
@@ -682,33 +690,56 @@ export default function Dashboard() {
         months[key].egresos += monto;
       });
 
+      // Agregar p_ingresos (fecha es tipo date, no timestamptz)
+      pIngresos.forEach((pi: any) => {
+        if (!pi.fecha) return;
+        const d = new Date(pi.fecha + "T12:00:00");
+        const key = `${d.getFullYear()}-${(d.getMonth() + 1)
+          .toString()
+          .padStart(2, "0")}`;
+        if (!months[key]) return;
+        months[key].ingresos += Number(pi.monto ?? 0);
+      });
+
       return Object.values(months);
     },
   });
 
-  const { data: pagosAll } = useQuery<any[]>({
+  const { data: pagosAllData } = useQuery<{
+    pagos: any[];
+    pIngresosCount: number;
+  }>({
     queryKey: ["dashboard", "pagos", "all"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("pagos").select("tipo,monto");
-      if (error) throw error;
-      return Array.isArray(data) ? data : [];
+      const [pagosRes, pIngresosRes] = await Promise.all([
+        supabase.from("pagos").select("tipo,monto"),
+        supabase.from("p_ingresos").select("id", { count: "exact", head: true }),
+      ]);
+      if (pagosRes.error) throw pagosRes.error;
+      return {
+        pagos: Array.isArray(pagosRes.data) ? pagosRes.data : [],
+        pIngresosCount: pIngresosRes.count ?? 0,
+      };
     },
   });
 
   const paymentTypeDistribution = (
-    Array.isArray(pagosAll) ? pagosAll : []
+    Array.isArray(pagosAllData?.pagos) ? pagosAllData!.pagos : []
   ).reduce((acc: Record<string, number>, p: any) => {
     const type = p?.tipo ?? "unico";
     acc[type] = (acc[type] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const pieData = Object.entries(paymentTypeDistribution).map(
-    ([name, value]) => ({
+  const pieData = [
+    ...Object.entries(paymentTypeDistribution).map(([name, value]) => ({
       name: getPaymentTypeLabel(name),
       value,
-    })
-  );
+    })),
+    ...(pagosAllData?.pIngresosCount
+      ? [{ name: "Ingresos Propios", value: pagosAllData.pIngresosCount }]
+      : []),
+  ];
 
   return (
     <div className="p-6 lg:p-8 space-y-8">
@@ -812,6 +843,9 @@ export default function Dashboard() {
                     labelStyle={{ color: "hsl(var(--foreground))" }}
                     formatter={(value: number) => [formatCurrency(value), ""]}
                   />
+                  <Legend
+                    wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
+                  />
                   <Bar
                     dataKey="oneTime"
                     fill="hsl(var(--chart-1))"
@@ -823,6 +857,12 @@ export default function Dashboard() {
                     fill="hsl(var(--chart-2))"
                     radius={[4, 4, 0, 0]}
                     name="Suscripciones"
+                  />
+                  <Bar
+                    dataKey="ingresos"
+                    fill="hsl(var(--chart-3))"
+                    radius={[4, 4, 0, 0]}
+                    name="Ingresos Propios"
                   />
                   <Bar
                     dataKey="egresos"
