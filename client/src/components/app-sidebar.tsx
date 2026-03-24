@@ -15,6 +15,7 @@ import {
   Receipt,
   Calculator,
   ReceiptText,
+  Wallet,
 } from "lucide-react";
 import {
   Sidebar,
@@ -57,6 +58,7 @@ const navigationItems = [
   },
   { title: "Avances", url: "/avances", icon: TrendingUp },
   { title: "Egresos", url: "/egresos", icon: TrendingDown },
+  { title: "Ingresos", url: "/ingresos", icon: Wallet },
   { title: "Estadisticas", url: "/estadisticas", icon: BarChart3 },
 ];
 

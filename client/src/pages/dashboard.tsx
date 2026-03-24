@@ -259,13 +259,14 @@ export default function Dashboard() {
     queryKey: ["dashboard", "stats"],
     queryFn: async () => {
       try {
-        const [rPagos, rClientes, rSubs, rContratos, rEgresos] =
+        const [rPagos, rClientes, rSubs, rContratos, rEgresos, rPIngresos] =
           await Promise.all([
             supabase.from("pagos").select("monto"),
             supabase.from("clientes").select("*"),
             supabase.from("suscripciones").select("*"),
             supabase.from("contratos").select("*"),
             supabase.from("egresos").select("monto"),
+            supabase.from("p_ingresos").select("monto"),
           ]);
 
         const pagosData = Array.isArray(rPagos.data) ? rPagos.data : [];
@@ -277,6 +278,7 @@ export default function Dashboard() {
           ? rContratos.data
           : [];
         const egresosData = Array.isArray(rEgresos.data) ? rEgresos.data : [];
+        const pIngresosData = Array.isArray(rPIngresos.data) ? rPIngresos.data : [];
 
         // Sumar todos los pagos realizados
         const totalPagos = pagosData.reduce(
@@ -290,8 +292,12 @@ export default function Dashboard() {
           0
         );
 
-        // Total de ingresos = pagos + pagos iniciales de contratos
-        const totalRevenue = totalPagos + totalPagosInicialesContratos;
+        // Total de ingresos = pagos + pagos iniciales de contratos + ingresos propios
+        const totalPIngresos = pIngresosData.reduce(
+          (s: number, p: any) => s + Number(p.monto ?? 0),
+          0
+        );
+        const totalRevenue = totalPagos + totalPagosInicialesContratos + totalPIngresos;
 
         // Sumar todos los egresos
         const totalEgresos = egresosData.reduce(

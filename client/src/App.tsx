@@ -23,6 +23,7 @@ import Avances from "@/pages/avances";
 import AvanceDetalle from "@/pages/avance-detalle";
 import Egresos from "@/pages/egresos";
 import EgresoDetalle from "@/pages/egreso-detalle";
+import Ingresos from "@/pages/ingresos";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import AccesoDenegado from "@/pages/acceso-denegado";
@@ -56,6 +57,7 @@ function Router() {
       <Route path="/avances" component={Avances} />
       <Route path="/egresos/:id" component={EgresoDetalle} />
       <Route path="/egresos" component={Egresos} />
+      <Route path="/ingresos" component={Ingresos} />
       <Route path="/dispositivos" component={Dispositivos} />
       <Route path="/facturar" component={Facturar} />
       <Route path="/facturas-emitidas" component={FacturasEmitidas} />

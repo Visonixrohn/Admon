@@ -13,6 +13,7 @@ import {
   Check,
   Printer,
   Trash2,
+  PlusCircle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   formatCurrency,
   formatDate,
@@ -347,8 +350,70 @@ export default function Payments() {
   });
 
   const [cobroOpen, setCobroOpen] = useState(false);
+  const [ingresoOpen, setIngresoOpen] = useState(false);
+  const [ingresoMonto, setIngresoMonto] = useState("");
+  const [ingresoReferencia, setIngresoReferencia] = useState("");
+  const [ingresoProyectoId, setIngresoProyectoId] = useState("");
+  const [proyectos, setProyectos] = useState<Array<{ id: string; nombre: string }>>([]);
 
   // invoice preview state
+  // Cargar proyectos para el selector del modal de ingreso
+  useEffect(() => {
+    supabase
+      .from("proyectos")
+      .select("id,nombre")
+      .order("nombre")
+      .then(({ data }) => {
+        if (Array.isArray(data)) setProyectos(data);
+      });
+  }, []);
+
+  const ingresoMutation = useMutation({
+    mutationFn: async (values: {
+      monto: number;
+      referencia: string;
+      proyecto_id: string | null;
+    }) => {
+      const { error } = await supabase.from("p_ingresos").insert([
+        {
+          monto: values.monto,
+          referencia: values.referencia || null,
+          proyecto_id: values.proyecto_id || null,
+          fecha: new Date().toISOString().slice(0, 10),
+        },
+      ]);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Ingreso registrado correctamente" });
+      setIngresoOpen(false);
+      setIngresoMonto("");
+      setIngresoReferencia("");
+      setIngresoProyectoId("");
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "stats"] });
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Error al registrar ingreso",
+        description: err?.message ?? "Error desconocido",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleIngresoSubmit = () => {
+    const monto = parseFloat(ingresoMonto);
+    if (!ingresoMonto || isNaN(monto) || monto <= 0) {
+      toast({ title: "Ingresa un monto válido", variant: "destructive" });
+      return;
+    }
+    ingresoMutation.mutate({
+      monto,
+      referencia: ingresoReferencia,
+      proyecto_id: ingresoProyectoId || null,
+    });
+  };
+
   const [invoiceHtml, setInvoiceHtml] = useState<string | null>(null);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const invoiceFrameRef = useRef<HTMLIFrameElement | null>(null);
@@ -723,8 +788,12 @@ export default function Payments() {
         <p className="text-muted-foreground mt-1">
           Seguimiento de todos los pagos
         </p>
-        <div className="mt-3">
+        <div className="mt-3 flex gap-2">
           <Button onClick={() => setCobroOpen(true)}>Cobro</Button>
+          <Button variant="outline" onClick={() => setIngresoOpen(true)}>
+            <PlusCircle className="h-4 w-4 mr-2" />
+            Ingreso
+          </Button>
         </div>
       </div>
 
@@ -854,6 +923,63 @@ export default function Payments() {
           )}
         </TabsContent>
       </Tabs>
+      {/* Modal de Ingreso Propio */}
+      <Dialog open={ingresoOpen} onOpenChange={setIngresoOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Registrar Ingreso</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="ingreso-monto">Monto *</Label>
+              <Input
+                id="ingreso-monto"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                value={ingresoMonto}
+                onChange={(e) => setIngresoMonto(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ingreso-referencia">Referencia</Label>
+              <Textarea
+                id="ingreso-referencia"
+                placeholder="Descripción o referencia del ingreso"
+                value={ingresoReferencia}
+                onChange={(e) => setIngresoReferencia(e.target.value)}
+                rows={2}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ingreso-proyecto">Proyecto</Label>
+              <Select value={ingresoProyectoId} onValueChange={setIngresoProyectoId}>
+                <SelectTrigger id="ingreso-proyecto">
+                  <SelectValue placeholder="Selecciona un proyecto (opcional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {proyectos.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Fecha: {new Date().toLocaleDateString("es-HN", { day: "2-digit", month: "long", year: "numeric" })} (se registra automáticamente)
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIngresoOpen(false)}>Cancelar</Button>
+            <Button onClick={handleIngresoSubmit} disabled={ingresoMutation.isPending}>
+              {ingresoMutation.isPending ? "Guardando..." : "Guardar Ingreso"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <CobroForm
         open={cobroOpen}
         onOpenChange={setCobroOpen}
