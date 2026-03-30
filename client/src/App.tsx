@@ -24,6 +24,8 @@ import AvanceDetalle from "@/pages/avance-detalle";
 import Egresos from "@/pages/egresos";
 import EgresoDetalle from "@/pages/egreso-detalle";
 import Ingresos from "@/pages/ingresos";
+import CuentasPorPagar from "@/pages/cuentas-por-pagar";
+import CuentaPorPagarDetalle from "@/pages/cuenta-por-pagar-detalle";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import AccesoDenegado from "@/pages/acceso-denegado";
@@ -58,6 +60,8 @@ function Router() {
       <Route path="/egresos/:id" component={EgresoDetalle} />
       <Route path="/egresos" component={Egresos} />
       <Route path="/ingresos" component={Ingresos} />
+      <Route path="/cuentas-por-pagar/:id" component={CuentaPorPagarDetalle} />
+      <Route path="/cuentas-por-pagar" component={CuentasPorPagar} />
       <Route path="/dispositivos" component={Dispositivos} />
       <Route path="/facturar" component={Facturar} />
       <Route path="/facturas-emitidas" component={FacturasEmitidas} />

@@ -144,7 +144,9 @@ function PaymentCard({
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
-              <p className="font-semibold text-sm md:text-base truncate">{payment.clientName}</p>
+              <p className="font-semibold text-sm md:text-base truncate">
+                {payment.clientName}
+              </p>
               <p className="text-xs md:text-sm text-muted-foreground truncate">
                 {payment.projectName}
               </p>
@@ -199,7 +201,9 @@ function PaymentCard({
 
         <div className="space-y-2 md:space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs md:text-sm text-muted-foreground">Monto:</span>
+            <span className="text-xs md:text-sm text-muted-foreground">
+              Monto:
+            </span>
             <span className="text-base md:text-lg font-bold truncate">
               {formatCurrency(Number(payment.amount))}
             </span>
@@ -207,8 +211,12 @@ function PaymentCard({
 
           {payment.paymentNumber && payment.paymentNumber > 1 && (
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs md:text-sm text-muted-foreground">Cuota:</span>
-              <span className="text-xs md:text-sm">#{payment.paymentNumber}</span>
+              <span className="text-xs md:text-sm text-muted-foreground">
+                Cuota:
+              </span>
+              <span className="text-xs md:text-sm">
+                #{payment.paymentNumber}
+              </span>
             </div>
           )}
 
@@ -232,16 +240,16 @@ function PaymentCard({
                 isOverdue
                   ? "text-red-500"
                   : isUrgent
-                  ? "text-yellow-500"
-                  : "text-muted-foreground"
+                    ? "text-yellow-500"
+                    : "text-muted-foreground"
               }`}
             >
               {Number.isFinite(daysUntil)
                 ? isOverdue
                   ? `Vencido hace ${Math.abs(daysUntil)} dias`
                   : daysUntil === 0
-                  ? "Vence hoy"
-                  : `Vence en ${daysUntil} dias`
+                    ? "Vence hoy"
+                    : `Vence en ${daysUntil} dias`
                 : "Fecha no disponible"}
             </span>
           )}
@@ -330,7 +338,8 @@ export default function Payments() {
 
   // Estados para eliminación de pagos
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [paymentToDelete, setPaymentToDelete] = useState<PaymentWithClient | null>(null);
+  const [paymentToDelete, setPaymentToDelete] =
+    useState<PaymentWithClient | null>(null);
   const [deletePassword, setDeletePassword] = useState("");
   const [isDeletingPayment, setIsDeletingPayment] = useState(false);
 
@@ -341,7 +350,7 @@ export default function Payments() {
       const { data, error } = await supabase
         .from("pagos")
         .select(
-          "id,fecha_de_creacion,tipo,referencia_id,cliente,proyecto,monto,notas"
+          "id,fecha_de_creacion,tipo,referencia_id,cliente,proyecto,monto,notas",
         )
         .order("fecha_de_creacion", { ascending: false });
       if (error) throw error;
@@ -354,7 +363,9 @@ export default function Payments() {
   const [ingresoMonto, setIngresoMonto] = useState("");
   const [ingresoReferencia, setIngresoReferencia] = useState("");
   const [ingresoProyectoId, setIngresoProyectoId] = useState("");
-  const [proyectos, setProyectos] = useState<Array<{ id: string; nombre: string }>>([]);
+  const [proyectos, setProyectos] = useState<
+    Array<{ id: string; nombre: string }>
+  >([]);
 
   // invoice preview state
   // Cargar proyectos para el selector del modal de ingreso
@@ -621,9 +632,9 @@ export default function Payments() {
         .select("clave")
         .limit(1)
         .single();
-      
+
       if (configError) throw configError;
-      
+
       const storedPassword = configData?.clave ?? null;
       if (!storedPassword) {
         toast({
@@ -633,7 +644,7 @@ export default function Payments() {
         });
         return;
       }
-      
+
       if (deletePassword !== storedPassword) {
         toast({
           title: "Contraseña incorrecta",
@@ -663,7 +674,10 @@ export default function Payments() {
       if (deleteError) throw deleteError;
 
       // Si es una suscripción, retroceder la fecha de próximo pago
-      if (paymentToDelete.tipo === "suscripcion" && paymentToDelete.referenceId) {
+      if (
+        paymentToDelete.tipo === "suscripcion" &&
+        paymentToDelete.referenceId
+      ) {
         try {
           const { data: susData } = await supabase
             .from("suscripciones")
@@ -674,7 +688,8 @@ export default function Payments() {
           if (susData && susData.proxima_fecha_de_pago) {
             const mensualidad = Number(susData.mensualidad ?? 0);
             const montoPagado = Number(paymentToDelete.amount);
-            const mesesARestar = mensualidad > 0 ? Math.floor(montoPagado / mensualidad) : 1;
+            const mesesARestar =
+              mensualidad > 0 ? Math.floor(montoPagado / mensualidad) : 1;
 
             let fechaActual = new Date(susData.proxima_fecha_de_pago);
             fechaActual.setMonth(fechaActual.getMonth() - mesesARestar);
@@ -757,7 +772,7 @@ export default function Payments() {
       matchesTab =
         payment.status === "vencido" ||
         (payment.status === "pendiente" &&
-            (payment.dueDate ? getDaysUntilDue(payment.dueDate) < 0 : false));
+          (payment.dueDate ? getDaysUntilDue(payment.dueDate) < 0 : false));
     } else if (activeTab === "paid") {
       matchesTab = payment.status === "pagado";
     }
@@ -771,7 +786,8 @@ export default function Payments() {
     overdue: paymentsList.filter(
       (p) =>
         p.status === "vencido" ||
-        (p.status === "pendiente" && (p.dueDate ? getDaysUntilDue(p.dueDate) < 0 : false))
+        (p.status === "pendiente" &&
+          (p.dueDate ? getDaysUntilDue(p.dueDate) < 0 : false)),
     ).length,
     paid: paymentsList.filter((p) => p.status === "pagado").length,
   };
@@ -954,7 +970,10 @@ export default function Payments() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="ingreso-proyecto">Proyecto</Label>
-              <Select value={ingresoProyectoId} onValueChange={setIngresoProyectoId}>
+              <Select
+                value={ingresoProyectoId}
+                onValueChange={setIngresoProyectoId}
+              >
                 <SelectTrigger id="ingreso-proyecto">
                   <SelectValue placeholder="Selecciona un proyecto (opcional)" />
                 </SelectTrigger>
@@ -968,12 +987,23 @@ export default function Payments() {
               </Select>
             </div>
             <p className="text-xs text-muted-foreground">
-              Fecha: {new Date().toLocaleDateString("es-HN", { day: "2-digit", month: "long", year: "numeric" })} (se registra automáticamente)
+              Fecha:{" "}
+              {new Date().toLocaleDateString("es-HN", {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+              })}{" "}
+              (se registra automáticamente)
             </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIngresoOpen(false)}>Cancelar</Button>
-            <Button onClick={handleIngresoSubmit} disabled={ingresoMutation.isPending}>
+            <Button variant="outline" onClick={() => setIngresoOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleIngresoSubmit}
+              disabled={ingresoMutation.isPending}
+            >
               {ingresoMutation.isPending ? "Guardando..." : "Guardar Ingreso"}
             </Button>
           </DialogFooter>

@@ -130,8 +130,8 @@ export default function IngresosPage() {
           ing.proyecto_id && proyectoMap[ing.proyecto_id]
             ? proyectoMap[ing.proyecto_id]
             : ing.proyecto_id
-            ? { id: ing.proyecto_id, nombre: "Proyecto desconocido" }
-            : null,
+              ? { id: ing.proyecto_id, nombre: "Proyecto desconocido" }
+              : null,
         ingresos: [],
         total: 0,
       };
@@ -140,14 +140,11 @@ export default function IngresosPage() {
     groups[key].total += Number(ing.monto ?? 0);
   });
 
-  const sortedGroups = Object.entries(groups).sort(([, a], [, b]) =>
-    b.total - a.total
+  const sortedGroups = Object.entries(groups).sort(
+    ([, a], [, b]) => b.total - a.total,
   );
 
-  const totalGeneral = ingresos.reduce(
-    (s, i) => s + Number(i.monto ?? 0),
-    0
-  );
+  const totalGeneral = ingresos.reduce((s, i) => s + Number(i.monto ?? 0), 0);
 
   // Mutación crear ingreso
   const createMutation = useMutation({
@@ -187,10 +184,7 @@ export default function IngresosPage() {
   // Mutación eliminar ingreso
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("p_ingresos")
-        .delete()
-        .eq("id", id);
+      const { error } = await supabase.from("p_ingresos").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -223,7 +217,7 @@ export default function IngresosPage() {
 
   // Vista detalle de proyecto
   const activeGroup = selectedProyecto
-    ? groups[selectedProyecto] ?? null
+    ? (groups[selectedProyecto] ?? null)
     : null;
 
   const formatFecha = (fecha: string) => {
@@ -253,7 +247,7 @@ export default function IngresosPage() {
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
               {selectedProyecto
-                ? activeGroup?.proyecto?.nombre ?? "Sin proyecto"
+                ? (activeGroup?.proyecto?.nombre ?? "Sin proyecto")
                 : "Ingresos"}
             </h1>
             <p className="text-muted-foreground mt-0.5 text-sm">
@@ -403,7 +397,7 @@ export default function IngresosPage() {
                 <p className="text-3xl font-bold">
                   {activeGroup.ingresos.length > 0
                     ? formatCurrency(
-                        activeGroup.total / activeGroup.ingresos.length
+                        activeGroup.total / activeGroup.ingresos.length,
                       )
                     : formatCurrency(0)}
                 </p>
@@ -541,10 +535,7 @@ export default function IngresosPage() {
             <Button variant="outline" onClick={() => setModalOpen(false)}>
               Cancelar
             </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={createMutation.isPending}
-            >
+            <Button onClick={handleSubmit} disabled={createMutation.isPending}>
               {createMutation.isPending ? "Guardando..." : "Guardar Ingreso"}
             </Button>
           </DialogFooter>

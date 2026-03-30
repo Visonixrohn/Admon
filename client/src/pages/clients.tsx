@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useClientes } from "@/hooks/use-clientes";
 import { mockClients } from "@/lib/mockData";
 import { queryClient } from "@/lib/queryClient";
+import { supabase } from "@/lib/supabase";
 
 type Cliente = {
   id: string;
@@ -89,7 +90,7 @@ export default function Clients() {
   const [claveOpen, setClaveOpen] = useState(false);
   const [claveValue, setClaveValue] = useState("");
   const [pendingEditCliente, setPendingEditCliente] = useState<Cliente | null>(
-    null
+    null,
   );
   const [pendingDeleteClienteId, setPendingDeleteClienteId] = useState<
     string | null
@@ -266,9 +267,7 @@ export default function Clients() {
                 variant="ghost"
                 onClick={async () => {
                   try {
-                    const res = await (await import("@/lib/supabase")).supabase
-                      .from("clientes")
-                      .select("*");
+                    const res = await supabase.from("clientes").select("*");
                     setDebugResult(res);
                   } catch (e) {
                     setDebugResult(e);
@@ -407,9 +406,7 @@ export default function Clients() {
                 onClick={async () => {
                   try {
                     setClaveLoading(true);
-                    const { data, error } = await (
-                      await import("@/lib/supabase")
-                    ).supabase
+                    const { data, error } = await supabase
                       .from("configuracion")
                       .select("clave")
                       .limit(1)

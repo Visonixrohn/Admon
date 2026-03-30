@@ -181,14 +181,16 @@ function UpcomingPaymentItem({
     : false;
 
   const inner = (
-    <div className={`flex items-center gap-4 py-3 border-b border-border last:border-0 ${clientId ? "cursor-pointer hover:bg-muted/50 rounded-md px-1 -mx-1 transition-colors" : ""}`}>
+    <div
+      className={`flex items-center gap-4 py-3 border-b border-border last:border-0 ${clientId ? "cursor-pointer hover:bg-muted/50 rounded-md px-1 -mx-1 transition-colors" : ""}`}
+    >
       <div
         className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
           isOverdue
             ? "bg-red-500/10"
             : isUrgent
-            ? "bg-yellow-500/10"
-            : "bg-muted"
+              ? "bg-yellow-500/10"
+              : "bg-muted"
         }`}
       >
         {isOverdue ? (
@@ -221,8 +223,8 @@ function UpcomingPaymentItem({
           {isOverdue
             ? `Vencido hace ${Math.abs(daysUntil)} dias`
             : daysUntil === 0
-            ? "Vence hoy"
-            : `Vence en ${daysUntil} dias`}
+              ? "Vence hoy"
+              : `Vence en ${daysUntil} dias`}
         </p>
       </div>
       <div className="text-right flex-shrink-0">
@@ -234,11 +236,7 @@ function UpcomingPaymentItem({
   );
 
   if (clientId) {
-    return (
-      <Link href={`/clientes/${clientId}`}>
-        {inner}
-      </Link>
-    );
+    return <Link href={`/clientes/${clientId}`}>{inner}</Link>;
   }
   return inner;
 }
@@ -279,31 +277,34 @@ export default function Dashboard() {
           ? rContratos.data
           : [];
         const egresosData = Array.isArray(rEgresos.data) ? rEgresos.data : [];
-        const pIngresosData = Array.isArray(rPIngresos.data) ? rPIngresos.data : [];
+        const pIngresosData = Array.isArray(rPIngresos.data)
+          ? rPIngresos.data
+          : [];
 
         // Sumar todos los pagos realizados
         const totalPagos = pagosData.reduce(
           (s: number, p: any) => s + Number(p.monto ?? 0),
-          0
+          0,
         );
 
         // Sumar pagos iniciales de contratos
         const totalPagosInicialesContratos = contratosData.reduce(
           (s: number, c: any) => s + Number(c.pago_inicial ?? 0),
-          0
+          0,
         );
 
         // Total de ingresos = pagos + pagos iniciales de contratos + ingresos propios
         const totalPIngresos = pIngresosData.reduce(
           (s: number, p: any) => s + Number(p.monto ?? 0),
-          0
+          0,
         );
-        const totalRevenue = totalPagos + totalPagosInicialesContratos + totalPIngresos;
+        const totalRevenue =
+          totalPagos + totalPagosInicialesContratos + totalPIngresos;
 
         // Sumar todos los egresos
         const totalEgresos = egresosData.reduce(
           (s: number, e: any) => s + Number(e.monto ?? 0),
-          0
+          0,
         );
 
         // Balance = ingresos - egresos
@@ -311,7 +312,7 @@ export default function Dashboard() {
 
         const totalClients = clientesData.length;
         const activeSubs = subsData.filter((s: any) =>
-          s.is_active === undefined ? true : Boolean(s.is_active)
+          s.is_active === undefined ? true : Boolean(s.is_active),
         );
 
         const activeSubscriptions = activeSubs.length;
@@ -321,7 +322,7 @@ export default function Dashboard() {
             const mensualidad = parseFloat(s.mensualidad || 0);
             return sum + (isNaN(mensualidad) ? 0 : mensualidad);
           },
-          0
+          0,
         );
 
         // Comparar fechas en horario hondureño
@@ -395,7 +396,7 @@ export default function Dashboard() {
       const { data, error } = await supabase
         .from("pagos")
         .select(
-          "id,fecha_de_creacion,tipo,referencia_id,cliente,proyecto,monto,notas"
+          "id,fecha_de_creacion,tipo,referencia_id,cliente,proyecto,monto,notas",
         )
         .order("fecha_de_creacion", { ascending: false })
         .limit(5);
@@ -403,7 +404,7 @@ export default function Dashboard() {
       const pagos = Array.isArray(data) ? data : [];
       // fetch clients map
       const clientIds = Array.from(
-        new Set(pagos.map((p: any) => p.cliente).filter(Boolean))
+        new Set(pagos.map((p: any) => p.cliente).filter(Boolean)),
       );
       const { data: clientsRes } = await supabase
         .from("clientes")
@@ -450,7 +451,7 @@ export default function Dashboard() {
       const { data: contratosData, error: contratosErr } = await supabase
         .from("contratos")
         .select(
-          "id,cliente,proyecto,proximo_pago,monto_total,pago_inicial,cantidad_de_pagos"
+          "id,cliente,proyecto,proximo_pago,monto_total,pago_inicial,cantidad_de_pagos",
         )
         .order("proximo_pago", { ascending: true })
         .limit(10);
@@ -463,8 +464,8 @@ export default function Dashboard() {
           [
             ...subs.map((s: any) => s.cliente),
             ...contratos.map((c: any) => c.cliente),
-          ].filter(Boolean)
-        )
+          ].filter(Boolean),
+        ),
       );
 
       const { data: clientsRes } = await supabase
@@ -490,7 +491,7 @@ export default function Dashboard() {
           // eslint-disable-next-line no-console
           console.error(
             "Error cargando pagos para contratos en dashboard:",
-            pagosErr
+            pagosErr,
           );
         } else {
           const pagos = Array.isArray(pagosData) ? pagosData : [];
@@ -571,35 +572,40 @@ export default function Dashboard() {
 
       // Convertir a UTC para la consulta (sumar 6 horas)
       const sixMonthsAgoUTC = new Date(
-        sixMonthsAgo.getTime() + 6 * 60 * 60 * 1000
+        sixMonthsAgo.getTime() + 6 * 60 * 60 * 1000,
       );
 
-      const [pagosRes, contratosRes, suscripcionesRes, egresosRes, pIngresosRes] =
-        await Promise.all([
-          supabase
-            .from("pagos")
-            .select("id,fecha_de_creacion,monto,tipo")
-            .gte("fecha_de_creacion", sixMonthsAgoUTC.toISOString())
-            .order("fecha_de_creacion", { ascending: true }),
-          supabase
-            .from("contratos")
-            .select("*")
-            .gte("fecha_de_creacion", sixMonthsAgoUTC.toISOString()),
-          supabase
-            .from("suscripciones")
-            .select("*")
-            .gte("fecha_de_creacion", sixMonthsAgoUTC.toISOString()),
-          supabase
-            .from("egresos")
-            .select("id,fecha,monto")
-            .gte("fecha", sixMonthsAgoUTC.toISOString())
-            .order("fecha", { ascending: true }),
-          supabase
-            .from("p_ingresos")
-            .select("id,fecha,monto")
-            .gte("fecha", sixMonthsAgo.toISOString().slice(0, 10))
-            .order("fecha", { ascending: true }),
-        ]);
+      const [
+        pagosRes,
+        contratosRes,
+        suscripcionesRes,
+        egresosRes,
+        pIngresosRes,
+      ] = await Promise.all([
+        supabase
+          .from("pagos")
+          .select("id,fecha_de_creacion,monto,tipo")
+          .gte("fecha_de_creacion", sixMonthsAgoUTC.toISOString())
+          .order("fecha_de_creacion", { ascending: true }),
+        supabase
+          .from("contratos")
+          .select("*")
+          .gte("fecha_de_creacion", sixMonthsAgoUTC.toISOString()),
+        supabase
+          .from("suscripciones")
+          .select("*")
+          .gte("fecha_de_creacion", sixMonthsAgoUTC.toISOString()),
+        supabase
+          .from("egresos")
+          .select("id,fecha,monto")
+          .gte("fecha", sixMonthsAgoUTC.toISOString())
+          .order("fecha", { ascending: true }),
+        supabase
+          .from("p_ingresos")
+          .select("id,fecha,monto")
+          .gte("fecha", sixMonthsAgo.toISOString().slice(0, 10))
+          .order("fecha", { ascending: true }),
+      ]);
 
       if (pagosRes.error) throw pagosRes.error;
       const pagos = Array.isArray(pagosRes.data) ? pagosRes.data : [];
@@ -610,7 +616,9 @@ export default function Dashboard() {
         ? suscripcionesRes.data
         : [];
       const egresos = Array.isArray(egresosRes.data) ? egresosRes.data : [];
-      const pIngresos = Array.isArray(pIngresosRes.data) ? pIngresosRes.data : [];
+      const pIngresos = Array.isArray(pIngresosRes.data)
+        ? pIngresosRes.data
+        : [];
 
       // build months array usando horario hondureño
       const months: Record<
@@ -628,7 +636,7 @@ export default function Dashboard() {
         const d = new Date(
           baseDate.getFullYear(),
           baseDate.getMonth() - (5 - i),
-          1
+          1,
         );
         const key = `${d.getFullYear()}-${(d.getMonth() + 1)
           .toString()
@@ -713,7 +721,9 @@ export default function Dashboard() {
     queryFn: async () => {
       const [pagosRes, pIngresosRes] = await Promise.all([
         supabase.from("pagos").select("tipo,monto"),
-        supabase.from("p_ingresos").select("id", { count: "exact", head: true }),
+        supabase
+          .from("p_ingresos")
+          .select("id", { count: "exact", head: true }),
       ]);
       if (pagosRes.error) throw pagosRes.error;
       return {
@@ -723,13 +733,28 @@ export default function Dashboard() {
     },
   });
 
+  const { data: cppSummary, isLoading: cppLoading } = useQuery<any>({
+    queryKey: ["dashboard", "cuentas_por_pagar", "summary"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("dashboard_cuentas_por_pagar_summary")
+        .select("*")
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const paymentTypeDistribution = (
     Array.isArray(pagosAllData?.pagos) ? pagosAllData!.pagos : []
-  ).reduce((acc: Record<string, number>, p: any) => {
-    const type = p?.tipo ?? "unico";
-    acc[type] = (acc[type] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  ).reduce(
+    (acc: Record<string, number>, p: any) => {
+      const type = p?.tipo ?? "unico";
+      acc[type] = (acc[type] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
   const pieData = [
     ...Object.entries(paymentTypeDistribution).map(([name, value]) => ({
@@ -756,7 +781,7 @@ export default function Dashboard() {
       </div>
 
       {/* Estadísticas principales: divididas en dos filas para mejor responsividad */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-4">
         <StatsCard
           title="Ingresos Totales"
           value={formatCurrency(stats?.totalRevenue || 0)}
@@ -778,6 +803,14 @@ export default function Dashboard() {
           trend={(stats?.balance || 0) >= 0 ? "up" : "down"}
           trendValue={(stats?.balance || 0) >= 0 ? "Positivo" : "Negativo"}
           loading={statsLoading}
+        />
+        <StatsCard
+          title="Cuentas por pagar"
+          value={formatCurrency(
+            Number((cppSummary as any)?.total_saldo_pendiente) || 0,
+          )}
+          icon={TrendingDown}
+          loading={statsLoading || cppLoading}
         />
       </div>
 
@@ -992,15 +1025,17 @@ export default function Dashboard() {
           <CardContent>
             {upcomingPayments && upcomingPayments.length > 0 ? (
               <div>
-                {upcomingPayments.slice(0, 5).map(({ payment, clientName, type, clientId }: any) => (
-                  <UpcomingPaymentItem
-                    key={payment.id}
-                    payment={payment}
-                    clientName={clientName}
-                    type={type}
-                    clientId={clientId}
-                  />
-                ))}
+                {upcomingPayments
+                  .slice(0, 5)
+                  .map(({ payment, clientName, type, clientId }: any) => (
+                    <UpcomingPaymentItem
+                      key={payment.id}
+                      payment={payment}
+                      clientName={clientName}
+                      type={type}
+                      clientId={clientId}
+                    />
+                  ))}
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">

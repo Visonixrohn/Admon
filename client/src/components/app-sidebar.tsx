@@ -51,6 +51,7 @@ const navigationItems = [
   { title: "Contratos Activos", url: "/contratos-activos", icon: FileText },
   { title: "Suscripciones", url: "/suscripciones", icon: RefreshCcw },
   { title: "Pagos", url: "/pagos", icon: CreditCard },
+  { title: "Cuentas por pagar", url: "/cuentas-por-pagar", icon: ReceiptText },
   {
     title: "Estado de cuentas",
     url: "/pagos/estado-de-cuentas",
