@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -39,7 +39,23 @@ import {
   Receipt,
   RefreshCw,
   SlidersHorizontal,
+  Check,
+  ChevronsUpDown,
+  Search,
 } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { useReactToPrint } from "react-to-print";
 import { imprimirEnMovil } from "@/lib/factura-print";
 
@@ -506,6 +522,69 @@ export default function Facturar() {
     },
   });
 
+  // ── Clientes para autocompletar
+  const { data: clientesData = [] } = useQuery({
+    queryKey: ["clientes_ac"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("clientes")
+        .select("id,nombre,rtn,email,direccion")
+        .order("nombre");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // ── Historial de clientes en facturas emitidas
+  const { data: facturasHist = [] } = useQuery({
+    queryKey: ["facturas_hist_clientes"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("facturas")
+        .select("cliente_nombre,cliente_rtn,cliente_direccion,cliente_email")
+        .order("fecha_emision", { ascending: false })
+        .limit(300);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // ── Proyectos para descripción de líneas
+  const { data: proyectosFac = [] } = useQuery({
+    queryKey: ["proyectos_fac"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("proyectos")
+        .select("id,nombre")
+        .order("nombre");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // ── Lista combinada de clientes sugeridos (tabla clientes + historial facturas)
+  type SugCliente = { key: string; nombre: string; rtn: string; direccion: string; email: string };
+  const clientesSugeridos = useMemo<SugCliente[]>(() => {
+    const map = new Map<string, SugCliente>();
+    for (const c of clientesData as any[]) {
+      const key = (c.nombre || "").toLowerCase().trim();
+      if (key) map.set(key, { key, nombre: c.nombre, rtn: c.rtn || "", direccion: c.direccion || "", email: c.email || "" });
+    }
+    for (const f of facturasHist as any[]) {
+      const key = (f.cliente_nombre || "").toLowerCase().trim();
+      if (!key) continue;
+      if (map.has(key)) {
+        const ex = map.get(key)!;
+        if (!ex.direccion && f.cliente_direccion) ex.direccion = f.cliente_direccion;
+        if (!ex.rtn && f.cliente_rtn) ex.rtn = f.cliente_rtn;
+        if (!ex.email && f.cliente_email) ex.email = f.cliente_email;
+      } else {
+        map.set(key, { key, nombre: f.cliente_nombre, rtn: f.cliente_rtn || "", direccion: f.cliente_direccion || "", email: f.cliente_email || "" });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  }, [clientesData, facturasHist]);
+
   // ── Estado formulario
   const [clienteNombre, setClienteNombre] = useState("");
   const [clienteRtn, setClienteRtn] = useState("");
@@ -520,6 +599,10 @@ export default function Facturar() {
   const [printData, setPrintData] = useState<any>(null);
   const [showPrint, setShowPrint] = useState(false);
 
+  // ── Combobox nombre cliente
+  const [openClienteCombo, setOpenClienteCombo] = useState(false);
+  const [clienteSearch, setClienteSearch] = useState("");
+
   // ── Modal de línea ──────────────────────────────────────────
   const [showLineaModal, setShowLineaModal] = useState(false);
   const [lineaEditId, setLineaEditId] = useState<string | null>(null); // null = nueva
@@ -529,6 +612,9 @@ export default function Facturar() {
   const [mlDescuento, setMlDescuento] = useState("0");
   const [mlGravamen, setMlGravamen] = useState<TipoGravamen>("gravado_15");
   const [mlCatalogoId, setMlCatalogoId] = useState("");
+  const [mlTotal, setMlTotal] = useState("0");          // entrada "Total línea"
+  const [openDescCombo, setOpenDescCombo] = useState(false);
+  const [descSearch, setDescSearch] = useState("");
 
   function abrirNuevaLinea() {
     setLineaEditId(null);
@@ -538,6 +624,9 @@ export default function Facturar() {
     setMlDescuento("0");
     setMlGravamen("gravado_15");
     setMlCatalogoId("");
+    setMlTotal("0");
+    setOpenDescCombo(false);
+    setDescSearch("");
     setShowLineaModal(true);
   }
 
@@ -549,6 +638,10 @@ export default function Facturar() {
     setMlDescuento(String(l.descuento));
     setMlGravamen(l.tipoGravamen);
     setMlCatalogoId("");
+    const { total } = calcularLinea(l);
+    setMlTotal(total.toFixed(2));
+    setOpenDescCombo(false);
+    setDescSearch("");
     setShowLineaModal(true);
   }
 
@@ -559,6 +652,37 @@ export default function Facturar() {
     setMlPrecio(String(prod.precio_unitario ?? "0"));
     setMlGravamen(prod.tipo_gravamen ?? "gravado_15");
     setMlCatalogoId(productoId);
+    // Recalcular total desde el nuevo precio
+    const cant = parseFloat(mlCantidad) || 1;
+    const desc = parseFloat(mlDescuento) || 0;
+    const precio = parseFloat(prod.precio_unitario ?? "0");
+    const tasa = (prod.tipo_gravamen ?? "gravado_15") === "gravado_15" ? 0.15 : (prod.tipo_gravamen ?? "") === "gravado_18" ? 0.18 : 0;
+    const sub = cant * precio - desc;
+    setMlTotal((sub + sub * tasa).toFixed(2));
+  }
+
+  // ── Seleccionar cliente del combobox → rellenar campos automáticamente
+  function seleccionarCliente(c: SugCliente) {
+    setClienteNombre(c.nombre);
+    setClienteRtn(c.rtn);
+    setClienteDireccion(c.direccion);
+    setClienteEmail(c.email);
+    setOpenClienteCombo(false);
+    setClienteSearch("");
+  }
+
+  // ── Calcular precioUnitario a partir del total de línea ingresado
+  function handleMlTotalChange(totalStr: string) {
+    setMlTotal(totalStr);
+    const total = parseFloat(totalStr) || 0;
+    const cant = parseFloat(mlCantidad) || 1;
+    const desc = parseFloat(mlDescuento) || 0;
+    const tasa = mlGravamen === "gravado_15" ? 0.15 : mlGravamen === "gravado_18" ? 0.18 : 0;
+    // total = (cant * precio - desc) * (1 + tasa)
+    // precio = (total / (1 + tasa) + desc) / cant
+    const sub = tasa > 0 ? total / (1 + tasa) : total;
+    const precio = (sub + desc) / Math.max(cant, 0.000001);
+    setMlPrecio(Math.max(0, precio).toFixed(6));
   }
 
   function guardarLineaModal() {
@@ -825,11 +949,92 @@ export default function Facturar() {
                   <label className="text-sm font-medium mb-1 block">
                     Nombre / Razón Social *
                   </label>
-                  <Input
-                    value={clienteNombre}
-                    onChange={(e) => setClienteNombre(e.target.value)}
-                    placeholder="Cliente S.A."
-                  />
+                  <Popover open={openClienteCombo} onOpenChange={setOpenClienteCombo}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={openClienteCombo}
+                        className="w-full justify-between font-normal h-9 px-3 text-sm"
+                      >
+                        <span className="truncate text-left flex-1">
+                          {clienteNombre || (
+                            <span className="text-muted-foreground">Buscar o escribir cliente…</span>
+                          )}
+                        </span>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[320px] p-0" align="start">
+                      <Command shouldFilter={false}>
+                        <CommandInput
+                          placeholder="Nombre o RTN del cliente…"
+                          value={clienteSearch}
+                          onValueChange={setClienteSearch}
+                        />
+                        <CommandList>
+                          <CommandEmpty>
+                            {clienteSearch ? (
+                              <button
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-accent"
+                                onClick={() => {
+                                  setClienteNombre(clienteSearch);
+                                  setOpenClienteCombo(false);
+                                  setClienteSearch("");
+                                }}
+                              >
+                                <Search className="inline mr-2 h-3 w-3" />
+                                Usar &quot;{clienteSearch}&quot;
+                              </button>
+                            ) : (
+                              <p className="px-3 py-2 text-sm text-muted-foreground">Sin clientes aún.</p>
+                            )}
+                          </CommandEmpty>
+                          <CommandGroup>
+                            {clienteSearch && (
+                              <CommandItem
+                                key="__custom__"
+                                value="__custom__"
+                                onSelect={() => {
+                                  setClienteNombre(clienteSearch);
+                                  setOpenClienteCombo(false);
+                                  setClienteSearch("");
+                                }}
+                              >
+                                <Search className="mr-2 h-4 w-4 text-muted-foreground" />
+                                <span className="text-muted-foreground text-sm">
+                                  Usar &quot;{clienteSearch}&quot;
+                                </span>
+                              </CommandItem>
+                            )}
+                            {clientesSugeridos
+                              .filter((c) => {
+                                if (!clienteSearch) return true;
+                                const s = clienteSearch.toLowerCase();
+                                return c.nombre.toLowerCase().includes(s) || c.rtn.toLowerCase().includes(s);
+                              })
+                              .map((c) => (
+                                <CommandItem
+                                  key={c.key}
+                                  value={c.key}
+                                  onSelect={() => seleccionarCliente(c)}
+                                >
+                                  <Check
+                                    className={`mr-2 h-4 w-4 ${clienteNombre === c.nombre ? "opacity-100" : "opacity-0"}`}
+                                  />
+                                  <div className="flex flex-col">
+                                    <span className="font-medium text-sm">{c.nombre}</span>
+                                    {c.rtn && (
+                                      <span className="text-xs text-muted-foreground font-mono">{c.rtn}</span>
+                                    )}
+                                  </div>
+                                </CommandItem>
+                              ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div>
                   <label className="text-sm font-medium mb-1 block">RTN</label>
@@ -1061,10 +1266,106 @@ export default function Facturar() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* ── Descripción con autocompletado de proyectos + catálogo ── */}
+            <div>
+              <label className="text-sm font-medium mb-1 block">
+                Descripción *
+              </label>
+              <Popover open={openDescCombo} onOpenChange={setOpenDescCombo}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={openDescCombo}
+                    className="w-full justify-between font-normal h-9 px-3 text-sm mb-1"
+                  >
+                    <span className="truncate text-left flex-1">
+                      {mlDescripcion || (
+                        <span className="text-muted-foreground">Buscar proyecto o escribir descripción…</span>
+                      )}
+                    </span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0" align="start">
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Buscar proyecto…"
+                      value={descSearch}
+                      onValueChange={setDescSearch}
+                    />
+                    <CommandList>
+                      <CommandEmpty>
+                        {descSearch ? (
+                          <button
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-accent"
+                            onClick={() => {
+                              setMlDescripcion(descSearch);
+                              setOpenDescCombo(false);
+                              setDescSearch("");
+                            }}
+                          >
+                            <Search className="inline mr-2 h-3 w-3" />
+                            Usar &quot;{descSearch}&quot;
+                          </button>
+                        ) : (
+                          <p className="px-3 py-2 text-sm text-muted-foreground">Sin proyectos.</p>
+                        )}
+                      </CommandEmpty>
+                      <CommandGroup heading="Proyectos">
+                        {descSearch && (
+                          <CommandItem
+                            key="__desc_custom__"
+                            value="__desc_custom__"
+                            onSelect={() => {
+                              setMlDescripcion(descSearch);
+                              setOpenDescCombo(false);
+                              setDescSearch("");
+                            }}
+                          >
+                            <Search className="mr-2 h-4 w-4 text-muted-foreground" />
+                            <span className="text-muted-foreground text-sm">Usar &quot;{descSearch}&quot;</span>
+                          </CommandItem>
+                        )}
+                        {proyectosFac
+                          .filter((p: any) => {
+                            if (!descSearch) return true;
+                            return (p.nombre || "").toLowerCase().includes(descSearch.toLowerCase());
+                          })
+                          .map((p: any) => (
+                            <CommandItem
+                              key={p.id}
+                              value={p.id}
+                              onSelect={() => {
+                                setMlDescripcion(p.nombre);
+                                setOpenDescCombo(false);
+                                setDescSearch("");
+                              }}
+                            >
+                              <Check
+                                className={`mr-2 h-4 w-4 ${mlDescripcion === p.nombre ? "opacity-100" : "opacity-0"}`}
+                              />
+                              {p.nombre}
+                            </CommandItem>
+                          ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <Textarea
+                rows={2}
+                value={mlDescripcion}
+                onChange={(e) => setMlDescripcion(e.target.value)}
+                placeholder="Descripción libre o edita la descripción seleccionada…"
+              />
+            </div>
+
+            {/* ── Catálogo (opcional) para rellenar precio/gravamen ── */}
             {catalogo.length > 0 && (
               <div>
-                <label className="text-sm font-medium mb-1 block">
-                  Del catálogo (opcional)
+                <label className="text-sm font-medium mb-1 block text-muted-foreground">
+                  Rellenar precio desde catálogo (opcional)
                 </label>
                 <Select
                   value={mlCatalogoId}
@@ -1084,18 +1385,9 @@ export default function Facturar() {
                 </Select>
               </div>
             )}
-            <div>
-              <label className="text-sm font-medium mb-1 block">
-                Descripción *
-              </label>
-              <Textarea
-                rows={2}
-                value={mlDescripcion}
-                onChange={(e) => setMlDescripcion(e.target.value)}
-                placeholder="Descripción del producto o servicio…"
-              />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+
+            {/* ── Cantidad y Descuento ── */}
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-sm font-medium mb-1 block">
                   Cantidad
@@ -1105,19 +1397,16 @@ export default function Facturar() {
                   min="0"
                   step="1"
                   value={mlCantidad}
-                  onChange={(e) => setMlCantidad(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-1 block">
-                  Precio Unitario (L)
-                </label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={mlPrecio}
-                  onChange={(e) => setMlPrecio(e.target.value)}
+                  onChange={(e) => {
+                    setMlCantidad(e.target.value);
+                    // Re-calcular precio desde el total actual
+                    const total = parseFloat(mlTotal) || 0;
+                    const cant = parseFloat(e.target.value) || 1;
+                    const desc = parseFloat(mlDescuento) || 0;
+                    const tasa = mlGravamen === "gravado_15" ? 0.15 : mlGravamen === "gravado_18" ? 0.18 : 0;
+                    const sub = tasa > 0 ? total / (1 + tasa) : total;
+                    setMlPrecio(Math.max(0, (sub + desc) / Math.max(cant, 0.000001)).toFixed(6));
+                  }}
                 />
               </div>
               <div>
@@ -1129,17 +1418,37 @@ export default function Facturar() {
                   min="0"
                   step="0.01"
                   value={mlDescuento}
-                  onChange={(e) => setMlDescuento(e.target.value)}
+                  onChange={(e) => {
+                    setMlDescuento(e.target.value);
+                    // Re-calcular precio desde el total actual
+                    const total = parseFloat(mlTotal) || 0;
+                    const cant = parseFloat(mlCantidad) || 1;
+                    const desc = parseFloat(e.target.value) || 0;
+                    const tasa = mlGravamen === "gravado_15" ? 0.15 : mlGravamen === "gravado_18" ? 0.18 : 0;
+                    const sub = tasa > 0 ? total / (1 + tasa) : total;
+                    setMlPrecio(Math.max(0, (sub + desc) / Math.max(cant, 0.000001)).toFixed(6));
+                  }}
                 />
               </div>
             </div>
+
+            {/* ── Tipo de Gravamen ── */}
             <div>
               <label className="text-sm font-medium mb-1 block">
                 Tipo de Gravamen
               </label>
               <Select
                 value={mlGravamen}
-                onValueChange={(v) => setMlGravamen(v as TipoGravamen)}
+                onValueChange={(v) => {
+                  setMlGravamen(v as TipoGravamen);
+                  // Re-calcular precio desde el total actual con el nuevo gravamen
+                  const total = parseFloat(mlTotal) || 0;
+                  const cant = parseFloat(mlCantidad) || 1;
+                  const desc = parseFloat(mlDescuento) || 0;
+                  const tasa = v === "gravado_15" ? 0.15 : v === "gravado_18" ? 0.18 : 0;
+                  const sub = tasa > 0 ? total / (1 + tasa) : total;
+                  setMlPrecio(Math.max(0, (sub + desc) / Math.max(cant, 0.000001)).toFixed(6));
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -1159,7 +1468,24 @@ export default function Facturar() {
                 </SelectContent>
               </Select>
             </div>
-            {/* Preview de subtotal */}
+
+            {/* ── Total línea (entrada principal) ── */}
+            <div>
+              <label className="text-sm font-medium mb-1 block">
+                Total línea (L) <span className="text-xs text-muted-foreground font-normal">— incluye ISV</span>
+              </label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={mlTotal}
+                onChange={(e) => handleMlTotalChange(e.target.value)}
+                className="text-base font-semibold"
+                placeholder="0.00"
+              />
+            </div>
+
+            {/* Preview de cálculos */}
             {(() => {
               const temp: LineaItem = {
                 id: "_",
@@ -1171,7 +1497,11 @@ export default function Facturar() {
               };
               const { sub, isv, total } = calcularLinea(temp);
               return (
-                <div className="bg-muted/40 rounded-lg p-3 text-sm grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="bg-muted/40 rounded-lg p-3 text-sm grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Precio Unit. (calculado)</p>
+                    <p className="font-mono text-xs">{lempiras(parseFloat(mlPrecio) || 0)}</p>
+                  </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Subtotal</p>
                     <p className="font-mono">{lempiras(sub)}</p>
@@ -1181,9 +1511,7 @@ export default function Facturar() {
                     <p className="font-mono">{lempiras(isv)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground font-semibold">
-                      Total línea
-                    </p>
+                    <p className="text-xs text-muted-foreground font-semibold">Total línea</p>
                     <p className="font-mono font-semibold">{lempiras(total)}</p>
                   </div>
                 </div>

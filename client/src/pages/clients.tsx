@@ -29,6 +29,7 @@ type Cliente = {
   telefono?: string | null;
   rtn?: string | null;
   oficio?: string | null;
+  direccion?: string | null;
   created_at?: string | null;
 };
 
@@ -54,7 +55,7 @@ export default function Clients() {
   const [debugResult, setDebugResult] = useState<any>(null);
 
   const form = useForm<Partial<Cliente>>({
-    defaultValues: { nombre: "", email: "", telefono: "", rtn: "", oficio: "" },
+    defaultValues: { nombre: "", email: "", telefono: "", rtn: "", oficio: "", direccion: "" },
   });
 
   const sanitizeValues = (vals: Partial<Cliente> | null) => ({
@@ -63,6 +64,7 @@ export default function Clients() {
     telefono: vals?.telefono?.toString().trim() ?? "",
     rtn: vals?.rtn?.toString().trim() ?? "",
     oficio: vals?.oficio?.toString().trim() ?? "",
+    direccion: vals?.direccion?.toString().trim() ?? "",
   });
   const onSubmit = async (values: Partial<Cliente>) => {
     try {
@@ -206,6 +208,13 @@ export default function Clients() {
                           <div className="truncate">{c.rtn ?? "-"}</div>
                         </div>
 
+                        <div className="text-sm hidden lg:block">
+                          <div className="text-xs uppercase font-medium text-muted-foreground mb-1">
+                            Dirección
+                          </div>
+                          <div className="truncate">{c.direccion ?? "-"}</div>
+                        </div>
+
                         <div className="flex items-center gap-2 justify-end">
                           <div className="text-xs text-muted-foreground hidden sm:block">
                             {c.created_at ? formatDate(c.created_at) : null}
@@ -342,6 +351,12 @@ export default function Clients() {
                 <FormLabel>RTN</FormLabel>
                 <FormControl>
                   <Input {...form.register("rtn")} />
+                </FormControl>
+              </FormItem>
+              <FormItem>
+                <FormLabel>Dirección</FormLabel>
+                <FormControl>
+                  <Input placeholder="Tegucigalpa, Honduras" {...form.register("direccion")} />
                 </FormControl>
               </FormItem>
               <FormItem>

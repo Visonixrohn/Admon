@@ -10,6 +10,7 @@ type Cliente = {
   telefono?: string | null;
   rtn?: string | null;
   oficio?: string | null;
+  direccion?: string | null;
   created_at?: string | null;
 };
 
@@ -45,6 +46,7 @@ export function useClientes() {
             telefono: payload.telefono ?? null,
             rtn: payload.rtn ?? null,
             oficio: payload.oficio ?? null,
+            direccion: payload.direccion ?? null,
           },
         ])
         .select()
@@ -70,6 +72,7 @@ export function useClientes() {
           telefono: payload.telefono ?? null,
           rtn: payload.rtn ?? null,
           oficio: payload.oficio ?? null,
+          direccion: payload.direccion ?? null,
         })
         .eq("id", payload.id)
         .select()
