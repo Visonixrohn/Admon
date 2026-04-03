@@ -34,6 +34,8 @@ import Facturar from "@/pages/facturar";
 import FacturasEmitidas from "@/pages/facturas-emitidas";
 import ReporteVentas from "@/pages/reporte-ventas";
 import CalculosImpuestos from "@/pages/calculos-impuestos";
+import Cotizar from "@/pages/cotizar";
+import CotizacionesEmitidas from "@/pages/cotizaciones-emitidas";
 import React, { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -67,6 +69,8 @@ function Router() {
       <Route path="/facturas-emitidas" component={FacturasEmitidas} />
       <Route path="/reporte-ventas" component={ReporteVentas} />
       <Route path="/calculos-impuestos" component={CalculosImpuestos} />
+      <Route path="/cotizar" component={Cotizar} />
+      <Route path="/cotizaciones-emitidas" component={CotizacionesEmitidas} />
       <Route component={NotFound} />
     </Switch>
   );

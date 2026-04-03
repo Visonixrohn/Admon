@@ -16,6 +16,9 @@ import {
   Calculator,
   ReceiptText,
   Wallet,
+  ClipboardList,
+  ClipboardCheck,
+  ChevronDown,
 } from "lucide-react";
 import {
   Sidebar,
@@ -30,6 +33,11 @@ import {
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -46,21 +54,30 @@ import { useState } from "react";
 const navigationItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Clientes", url: "/clientes", icon: Users },
+  { title: "Contratos Activos", url: "/contratos-activos", icon: FileText },
   { title: "Proyecto", url: "/clientes/proyecto", icon: Code2 },
   { title: "Venta", url: "/clientes/proyecto/ventas", icon: ShoppingCart },
-  { title: "Contratos Activos", url: "/contratos-activos", icon: FileText },
   { title: "Suscripciones", url: "/suscripciones", icon: RefreshCcw },
   { title: "Pagos", url: "/pagos", icon: CreditCard },
-  { title: "Cuentas por pagar", url: "/cuentas-por-pagar", icon: ReceiptText },
   {
-    title: "Estado de cuentas",
+    title: "Estado de Cuentas",
     url: "/pagos/estado-de-cuentas",
     icon: FileText,
   },
+  { title: "Cuentas por Pagar", url: "/cuentas-por-pagar", icon: ReceiptText },
   { title: "Avances", url: "/avances", icon: TrendingUp },
-  { title: "Egresos", url: "/egresos", icon: TrendingDown },
   { title: "Ingresos", url: "/ingresos", icon: Wallet },
-  { title: "Estadisticas", url: "/estadisticas", icon: BarChart3 },
+  { title: "Egresos", url: "/egresos", icon: TrendingDown },
+  { title: "Estadísticas", url: "/estadisticas", icon: BarChart3 },
+];
+
+const cotizacionesItems = [
+  { title: "Cotizar", url: "/cotizar", icon: ClipboardList },
+  {
+    title: "Cotizaciones",
+    url: "/cotizaciones-emitidas",
+    icon: ClipboardCheck,
+  },
 ];
 
 const facturacionItems = [
@@ -79,6 +96,11 @@ export function AppSidebar({ onLogout }: AppSidebarProps) {
   const { isMobile, setOpenMobile } = useSidebar();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
+  // Estados colapsables de cada sección
+  const [openAdmin, setOpenAdmin] = useState(true);
+  const [openCot, setOpenCot] = useState(true);
+  const [openFac, setOpenFac] = useState(true);
+
   // quick client-side guard: don't render sidebar if user is not authenticated
   if (typeof window !== "undefined") {
     try {
@@ -87,6 +109,62 @@ export function AppSidebar({ onLogout }: AppSidebarProps) {
     } catch (e) {
       return null;
     }
+  }
+
+  // Helper para renderizar un grupo colapsable
+  function renderGroup(
+    label: string,
+    items: { title: string; url: string; icon: React.ElementType }[],
+    open: boolean,
+    setOpen: (v: boolean) => void,
+  ) {
+    return (
+      <SidebarGroup className="p-0">
+        <Collapsible open={open} onOpenChange={setOpen}>
+          <CollapsibleTrigger asChild>
+            <button
+              className="flex w-full items-center justify-between px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {label}
+              <ChevronDown
+                className={`h-3.5 w-3.5 transition-transform duration-200 ${open ? "rotate-0" : "-rotate-90"}`}
+              />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-none">
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {items.map((item) => {
+                  const isActive =
+                    location === item.url ||
+                    (item.url !== "/" && location.startsWith(item.url));
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        className="transition-colors"
+                      >
+                        <Link
+                          href={item.url}
+                          data-testid={`link-nav-${item.title.toLowerCase()}`}
+                          onClick={() => {
+                            if (isMobile) setOpenMobile(false);
+                          }}
+                        >
+                          <item.icon className="h-5 w-5" />
+                          <span className="font-medium">{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </CollapsibleContent>
+        </Collapsible>
+      </SidebarGroup>
+    );
   }
 
   return (
@@ -113,75 +191,9 @@ export function AppSidebar({ onLogout }: AppSidebarProps) {
         </Link>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel className="px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Menu Principal
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navigationItems.map((item) => {
-                const isActive =
-                  location === item.url ||
-                  (item.url !== "/" && location.startsWith(item.url));
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      className="transition-colors"
-                    >
-                      <Link
-                        href={item.url}
-                        data-testid={`link-nav-${item.title.toLowerCase()}`}
-                        onClick={() => {
-                          if (isMobile) setOpenMobile(false);
-                        }}
-                      >
-                        <item.icon className="h-5 w-5" />
-                        <span className="font-medium">{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* ── Facturación ── */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Facturación SAR
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {facturacionItems.map((item) => {
-                const isActive =
-                  location === item.url ||
-                  (item.url !== "/" && location.startsWith(item.url));
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      className="transition-colors"
-                    >
-                      <Link
-                        href={item.url}
-                        onClick={() => {
-                          if (isMobile) setOpenMobile(false);
-                        }}
-                      >
-                        <item.icon className="h-5 w-5" />
-                        <span className="font-medium">{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {renderGroup("Administración", navigationItems, openAdmin, setOpenAdmin)}
+        {renderGroup("Cotizaciones", cotizacionesItems, openCot, setOpenCot)}
+        {renderGroup("Facturación", facturacionItems, openFac, setOpenFac)}
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border p-4">
         <SidebarMenu>

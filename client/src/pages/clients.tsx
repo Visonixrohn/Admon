@@ -55,7 +55,14 @@ export default function Clients() {
   const [debugResult, setDebugResult] = useState<any>(null);
 
   const form = useForm<Partial<Cliente>>({
-    defaultValues: { nombre: "", email: "", telefono: "", rtn: "", oficio: "", direccion: "" },
+    defaultValues: {
+      nombre: "",
+      email: "",
+      telefono: "",
+      rtn: "",
+      oficio: "",
+      direccion: "",
+    },
   });
 
   const sanitizeValues = (vals: Partial<Cliente> | null) => ({
@@ -356,7 +363,10 @@ export default function Clients() {
               <FormItem>
                 <FormLabel>Dirección</FormLabel>
                 <FormControl>
-                  <Input placeholder="Tegucigalpa, Honduras" {...form.register("direccion")} />
+                  <Input
+                    placeholder="Tegucigalpa, Honduras"
+                    {...form.register("direccion")}
+                  />
                 </FormControl>
               </FormItem>
               <FormItem>

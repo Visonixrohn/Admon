@@ -1,4 +1,10 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -563,26 +569,48 @@ export default function Facturar() {
   });
 
   // ── Lista combinada de clientes sugeridos (tabla clientes + historial facturas)
-  type SugCliente = { key: string; nombre: string; rtn: string; direccion: string; email: string };
+  type SugCliente = {
+    key: string;
+    nombre: string;
+    rtn: string;
+    direccion: string;
+    email: string;
+  };
   const clientesSugeridos = useMemo<SugCliente[]>(() => {
     const map = new Map<string, SugCliente>();
     for (const c of clientesData as any[]) {
       const key = (c.nombre || "").toLowerCase().trim();
-      if (key) map.set(key, { key, nombre: c.nombre, rtn: c.rtn || "", direccion: c.direccion || "", email: c.email || "" });
+      if (key)
+        map.set(key, {
+          key,
+          nombre: c.nombre,
+          rtn: c.rtn || "",
+          direccion: c.direccion || "",
+          email: c.email || "",
+        });
     }
     for (const f of facturasHist as any[]) {
       const key = (f.cliente_nombre || "").toLowerCase().trim();
       if (!key) continue;
       if (map.has(key)) {
         const ex = map.get(key)!;
-        if (!ex.direccion && f.cliente_direccion) ex.direccion = f.cliente_direccion;
+        if (!ex.direccion && f.cliente_direccion)
+          ex.direccion = f.cliente_direccion;
         if (!ex.rtn && f.cliente_rtn) ex.rtn = f.cliente_rtn;
         if (!ex.email && f.cliente_email) ex.email = f.cliente_email;
       } else {
-        map.set(key, { key, nombre: f.cliente_nombre, rtn: f.cliente_rtn || "", direccion: f.cliente_direccion || "", email: f.cliente_email || "" });
+        map.set(key, {
+          key,
+          nombre: f.cliente_nombre,
+          rtn: f.cliente_rtn || "",
+          direccion: f.cliente_direccion || "",
+          email: f.cliente_email || "",
+        });
       }
     }
-    return Array.from(map.values()).sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+    return Array.from(map.values()).sort((a, b) =>
+      a.nombre.localeCompare(b.nombre, "es"),
+    );
   }, [clientesData, facturasHist]);
 
   // ── Estado formulario
@@ -612,7 +640,7 @@ export default function Facturar() {
   const [mlDescuento, setMlDescuento] = useState("0");
   const [mlGravamen, setMlGravamen] = useState<TipoGravamen>("gravado_15");
   const [mlCatalogoId, setMlCatalogoId] = useState("");
-  const [mlTotal, setMlTotal] = useState("0");          // entrada "Total línea"
+  const [mlTotal, setMlTotal] = useState("0"); // entrada "Total línea"
   const [openDescCombo, setOpenDescCombo] = useState(false);
   const [descSearch, setDescSearch] = useState("");
 
@@ -656,7 +684,12 @@ export default function Facturar() {
     const cant = parseFloat(mlCantidad) || 1;
     const desc = parseFloat(mlDescuento) || 0;
     const precio = parseFloat(prod.precio_unitario ?? "0");
-    const tasa = (prod.tipo_gravamen ?? "gravado_15") === "gravado_15" ? 0.15 : (prod.tipo_gravamen ?? "") === "gravado_18" ? 0.18 : 0;
+    const tasa =
+      (prod.tipo_gravamen ?? "gravado_15") === "gravado_15"
+        ? 0.15
+        : (prod.tipo_gravamen ?? "") === "gravado_18"
+          ? 0.18
+          : 0;
     const sub = cant * precio - desc;
     setMlTotal((sub + sub * tasa).toFixed(2));
   }
@@ -677,7 +710,12 @@ export default function Facturar() {
     const total = parseFloat(totalStr) || 0;
     const cant = parseFloat(mlCantidad) || 1;
     const desc = parseFloat(mlDescuento) || 0;
-    const tasa = mlGravamen === "gravado_15" ? 0.15 : mlGravamen === "gravado_18" ? 0.18 : 0;
+    const tasa =
+      mlGravamen === "gravado_15"
+        ? 0.15
+        : mlGravamen === "gravado_18"
+          ? 0.18
+          : 0;
     // total = (cant * precio - desc) * (1 + tasa)
     // precio = (total / (1 + tasa) + desc) / cant
     const sub = tasa > 0 ? total / (1 + tasa) : total;
@@ -949,7 +987,10 @@ export default function Facturar() {
                   <label className="text-sm font-medium mb-1 block">
                     Nombre / Razón Social *
                   </label>
-                  <Popover open={openClienteCombo} onOpenChange={setOpenClienteCombo}>
+                  <Popover
+                    open={openClienteCombo}
+                    onOpenChange={setOpenClienteCombo}
+                  >
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
@@ -959,7 +1000,9 @@ export default function Facturar() {
                       >
                         <span className="truncate text-left flex-1">
                           {clienteNombre || (
-                            <span className="text-muted-foreground">Buscar o escribir cliente…</span>
+                            <span className="text-muted-foreground">
+                              Buscar o escribir cliente…
+                            </span>
                           )}
                         </span>
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -987,7 +1030,9 @@ export default function Facturar() {
                                 Usar &quot;{clienteSearch}&quot;
                               </button>
                             ) : (
-                              <p className="px-3 py-2 text-sm text-muted-foreground">Sin clientes aún.</p>
+                              <p className="px-3 py-2 text-sm text-muted-foreground">
+                                Sin clientes aún.
+                              </p>
                             )}
                           </CommandEmpty>
                           <CommandGroup>
@@ -1011,7 +1056,10 @@ export default function Facturar() {
                               .filter((c) => {
                                 if (!clienteSearch) return true;
                                 const s = clienteSearch.toLowerCase();
-                                return c.nombre.toLowerCase().includes(s) || c.rtn.toLowerCase().includes(s);
+                                return (
+                                  c.nombre.toLowerCase().includes(s) ||
+                                  c.rtn.toLowerCase().includes(s)
+                                );
                               })
                               .map((c) => (
                                 <CommandItem
@@ -1023,9 +1071,13 @@ export default function Facturar() {
                                     className={`mr-2 h-4 w-4 ${clienteNombre === c.nombre ? "opacity-100" : "opacity-0"}`}
                                   />
                                   <div className="flex flex-col">
-                                    <span className="font-medium text-sm">{c.nombre}</span>
+                                    <span className="font-medium text-sm">
+                                      {c.nombre}
+                                    </span>
                                     {c.rtn && (
-                                      <span className="text-xs text-muted-foreground font-mono">{c.rtn}</span>
+                                      <span className="text-xs text-muted-foreground font-mono">
+                                        {c.rtn}
+                                      </span>
                                     )}
                                   </div>
                                 </CommandItem>
@@ -1281,7 +1333,9 @@ export default function Facturar() {
                   >
                     <span className="truncate text-left flex-1">
                       {mlDescripcion || (
-                        <span className="text-muted-foreground">Buscar proyecto o escribir descripción…</span>
+                        <span className="text-muted-foreground">
+                          Buscar proyecto o escribir descripción…
+                        </span>
                       )}
                     </span>
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -1309,7 +1363,9 @@ export default function Facturar() {
                             Usar &quot;{descSearch}&quot;
                           </button>
                         ) : (
-                          <p className="px-3 py-2 text-sm text-muted-foreground">Sin proyectos.</p>
+                          <p className="px-3 py-2 text-sm text-muted-foreground">
+                            Sin proyectos.
+                          </p>
                         )}
                       </CommandEmpty>
                       <CommandGroup heading="Proyectos">
@@ -1324,13 +1380,17 @@ export default function Facturar() {
                             }}
                           >
                             <Search className="mr-2 h-4 w-4 text-muted-foreground" />
-                            <span className="text-muted-foreground text-sm">Usar &quot;{descSearch}&quot;</span>
+                            <span className="text-muted-foreground text-sm">
+                              Usar &quot;{descSearch}&quot;
+                            </span>
                           </CommandItem>
                         )}
                         {proyectosFac
                           .filter((p: any) => {
                             if (!descSearch) return true;
-                            return (p.nombre || "").toLowerCase().includes(descSearch.toLowerCase());
+                            return (p.nombre || "")
+                              .toLowerCase()
+                              .includes(descSearch.toLowerCase());
                           })
                           .map((p: any) => (
                             <CommandItem
@@ -1403,9 +1463,19 @@ export default function Facturar() {
                     const total = parseFloat(mlTotal) || 0;
                     const cant = parseFloat(e.target.value) || 1;
                     const desc = parseFloat(mlDescuento) || 0;
-                    const tasa = mlGravamen === "gravado_15" ? 0.15 : mlGravamen === "gravado_18" ? 0.18 : 0;
+                    const tasa =
+                      mlGravamen === "gravado_15"
+                        ? 0.15
+                        : mlGravamen === "gravado_18"
+                          ? 0.18
+                          : 0;
                     const sub = tasa > 0 ? total / (1 + tasa) : total;
-                    setMlPrecio(Math.max(0, (sub + desc) / Math.max(cant, 0.000001)).toFixed(6));
+                    setMlPrecio(
+                      Math.max(
+                        0,
+                        (sub + desc) / Math.max(cant, 0.000001),
+                      ).toFixed(6),
+                    );
                   }}
                 />
               </div>
@@ -1424,9 +1494,19 @@ export default function Facturar() {
                     const total = parseFloat(mlTotal) || 0;
                     const cant = parseFloat(mlCantidad) || 1;
                     const desc = parseFloat(e.target.value) || 0;
-                    const tasa = mlGravamen === "gravado_15" ? 0.15 : mlGravamen === "gravado_18" ? 0.18 : 0;
+                    const tasa =
+                      mlGravamen === "gravado_15"
+                        ? 0.15
+                        : mlGravamen === "gravado_18"
+                          ? 0.18
+                          : 0;
                     const sub = tasa > 0 ? total / (1 + tasa) : total;
-                    setMlPrecio(Math.max(0, (sub + desc) / Math.max(cant, 0.000001)).toFixed(6));
+                    setMlPrecio(
+                      Math.max(
+                        0,
+                        (sub + desc) / Math.max(cant, 0.000001),
+                      ).toFixed(6),
+                    );
                   }}
                 />
               </div>
@@ -1445,9 +1525,15 @@ export default function Facturar() {
                   const total = parseFloat(mlTotal) || 0;
                   const cant = parseFloat(mlCantidad) || 1;
                   const desc = parseFloat(mlDescuento) || 0;
-                  const tasa = v === "gravado_15" ? 0.15 : v === "gravado_18" ? 0.18 : 0;
+                  const tasa =
+                    v === "gravado_15" ? 0.15 : v === "gravado_18" ? 0.18 : 0;
                   const sub = tasa > 0 ? total / (1 + tasa) : total;
-                  setMlPrecio(Math.max(0, (sub + desc) / Math.max(cant, 0.000001)).toFixed(6));
+                  setMlPrecio(
+                    Math.max(
+                      0,
+                      (sub + desc) / Math.max(cant, 0.000001),
+                    ).toFixed(6),
+                  );
                 }}
               >
                 <SelectTrigger>
@@ -1472,7 +1558,10 @@ export default function Facturar() {
             {/* ── Total línea (entrada principal) ── */}
             <div>
               <label className="text-sm font-medium mb-1 block">
-                Total línea (L) <span className="text-xs text-muted-foreground font-normal">— incluye ISV</span>
+                Total línea (L){" "}
+                <span className="text-xs text-muted-foreground font-normal">
+                  — incluye ISV
+                </span>
               </label>
               <Input
                 type="number"
@@ -1499,8 +1588,12 @@ export default function Facturar() {
               return (
                 <div className="bg-muted/40 rounded-lg p-3 text-sm grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <div>
-                    <p className="text-xs text-muted-foreground">Precio Unit. (calculado)</p>
-                    <p className="font-mono text-xs">{lempiras(parseFloat(mlPrecio) || 0)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Precio Unit. (calculado)
+                    </p>
+                    <p className="font-mono text-xs">
+                      {lempiras(parseFloat(mlPrecio) || 0)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Subtotal</p>
@@ -1511,7 +1604,9 @@ export default function Facturar() {
                     <p className="font-mono">{lempiras(isv)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground font-semibold">Total línea</p>
+                    <p className="text-xs text-muted-foreground font-semibold">
+                      Total línea
+                    </p>
                     <p className="font-mono font-semibold">{lempiras(total)}</p>
                   </div>
                 </div>
