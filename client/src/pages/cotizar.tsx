@@ -573,6 +573,9 @@ export default function Cotizar() {
   // ── Imprimir (desktop)
   const handlePrint = useReactToPrint({
     contentRef: printRef,
+    documentTitle: printData
+      ? `cotizacion de cliente: ${printData.clienteNombre}, cotizacion numero: ${printData.numero}`
+      : "Cotizacion",
     pageStyle: `@page { size: letter portrait; margin: 10mm 12mm 10mm 12mm; } @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }`,
   });
 
@@ -627,7 +630,7 @@ export default function Cotizar() {
     });
 
     const html = `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Cotización ${printData.numero}</title>
+<title>cotizacion de cliente: ${printData.clienteNombre}, cotizacion numero: ${printData.numero}</title>
 <style>@page{size:letter portrait;margin:10mm 12mm;}*{box-sizing:border-box;}body{font-family:Arial,sans-serif;font-size:12px;color:#000;margin:0;padding:24px;}table{border-collapse:collapse;width:100%}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style>
 </head><body>
 <div style="text-align:center;margin-bottom:16px"><img src="${logoSrc}" style="width:80px;height:80px;object-fit:contain;display:block;margin:0 auto"/><p style="font-weight:bold;font-size:14px;margin-top:4px;text-transform:uppercase;letter-spacing:1px">ESTUDIO DIGITAL VISONIXRO</p></div>
