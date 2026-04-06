@@ -787,6 +787,9 @@ export default function Facturar() {
   // ── Guardar e imprimir
   const handlePrint = useReactToPrint({
     contentRef: printRef,
+    documentTitle: printData
+      ? `${printData.clienteNombre} - ${printData.numero} - ${new Date().toISOString().split("T")[0]}`
+      : "Factura",
     pageStyle: `
       @page { size: letter portrait; margin: 10mm 12mm 10mm 12mm; }
       @media print {

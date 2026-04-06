@@ -127,6 +127,9 @@ export default function FacturasEmitidas() {
   // ─── Reimprimir: cargar líneas y abrir modal
   const handlePrint = useReactToPrint({
     contentRef: printRef,
+    documentTitle: selected
+      ? `${selected.cliente_nombre} - ${selected.numero_factura} - ${selected.fecha_emision ?? new Date().toISOString().split("T")[0]}`
+      : "Factura",
     pageStyle: `
       @page { size: letter portrait; margin: 10mm 12mm 10mm 12mm; }
       @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
